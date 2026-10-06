@@ -24,3 +24,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Profile picture <-> game card morph (React <ViewTransition share="morph">).
+   The group animates size/position; a brief blur mid-flight hides the
+   stretch between the tiny round picture and the tall card. */
+::view-transition-group(.morph) {
+  animation-duration: 550ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: morph-blur;
+  animation-duration: 550ms;
+}
+/* fill the morphing box instead of keeping each snapshot's own aspect ratio */
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+}
+@keyframes morph-blur {
+  40% {
+    filter: blur(4px);
+  }
+}
+
+/* everything else (text, backdrop, esc / score bar) crossfades alongside */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 400ms;
+}
