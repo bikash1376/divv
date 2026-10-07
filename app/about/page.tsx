@@ -336,17 +336,18 @@ const Hero = ({
 
   return (
     <div
-      className="relative z-10 flex flex-1 justify-center px-4 pt-6 pb-10 sm:pt-20 text-neutral-800 tracking-tight"
+      className="relative z-10 flex flex-1 justify-center px-4 py-10 text-neutral-800 tracking-tight"
       style={{ fontFamily: "var(--font-inter)" }}
     >
-      {/* column runs from the navbar to the bottom of the screen; the navbar pins
-          to its top edge and the game fills it, so both span the text's width */}
-      <div className="relative flex flex-col w-full max-w-[820px] pt-24 sm:pt-28">
-        <Navbar progress={progress} />
+      {/* full-height column as wide as the longest paragraph (it wraps on narrow
+          screens); the navbar pins to its top edge and the game fills it */}
+      <div className="relative flex flex-col justify-center w-fit max-w-full">
+        {/* navbar hidden for now */}
+        {/* <Navbar progress={progress} /> */}
 
         {/* same two-layer setup as the letters: outer rises in on load, inner rises out on scroll */}
         <motion.div
-          className="mb-8 w-fit"
+          className="mb-4 w-fit"
           initial={{ y: LETTER_TRAVEL, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: HERO_START, duration: 0.6, ease: EASE_OUT }}
@@ -356,7 +357,7 @@ const Hero = ({
                 morph needs one element leaving and another (the game card, same
                 name) arriving in the same transition. */}
             {playing ? (
-              <div className="size-18" />
+              <div className="size-10" />
             ) : (
             <ViewTransition name={GAME_MORPH} share="morph" default="none">
             {/* third layer for dragging, so it doesn't fight the in/out layers over `y` */}
@@ -378,15 +379,15 @@ const Hero = ({
             >
               <Image
                 src={HERO_IMAGE}
-                width={72}
-                height={72}
+                width={40}
+                height={40}
                 alt=""
                 // stops the browser's own image drag from hijacking the gesture
                 draggable="false"
                 // 50% rather than rounded-full: rounded-full is an effectively infinite
                 // radius, so the transition would jump instead of smoothly morphing
-                className={`size-18 object-cover transition-[border-radius] duration-300 ease-out hover:rounded-[50%] ${
-                  moved ? "rounded-[50%]" : "rounded-2xl"
+                className={`size-10 object-cover transition-[border-radius] duration-300 ease-out hover:rounded-[50%] ${
+                  moved ? "rounded-[50%]" : "rounded-lg"
                 }`}
               />
             </motion.div>
@@ -396,7 +397,7 @@ const Hero = ({
         </motion.div>
 
         {HERO_PARAGRAPHS.map((paragraph, p) => (
-          <p key={p} className={`text-lg leading-snug ${p ? "mt-5" : ""}`}>
+          <p key={p} className={`text-base leading-normal ${p ? "mt-3" : ""}`}>
             <span className="sr-only">{paragraph.map((s) => s.text).join("")}</span>
             {paragraph.map((segment, s) => {
               const className = `${segment.muted ? "text-neutral-400" : segment.href ? "text-neutral-950 font-medium" : "text-neutral-800"} ${
