@@ -4,13 +4,14 @@ import { motion } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import HoldToAnimate from "@/components/HoldToAnimate";
+import MobileMenu from "@/components/MobileMenu";
 
 // Leave `component` out for a slot that's still being made — it shows as "soon".
 type Stuff = { name: string; component?: React.ReactNode };
 
 const STUFF: Stuff[] = [
   { name: "Hold button", component: <HoldToAnimate /> },
-  { name: "Untitled" },
+  { name: "Mobile menu", component: <MobileMenu /> },
   { name: "Untitled" },
   { name: "Untitled" },
 ];
