@@ -33,7 +33,6 @@ export default function Home() {
 
 
 
-
 <div className="space-y-6 mt-[40em]">
   {boxes.map((box) => (
       <motion.div key={box} className="w-50 h-50 bg-yellow-300 rounded-lg" drag initial={{
