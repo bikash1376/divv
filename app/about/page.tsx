@@ -300,16 +300,9 @@ const Hero = ({
     });
   };
 
-  // once the picture has been dragged it stays round, until a game ends
-  const [moved, setMoved] = useState(false);
-  // when the game closes (Esc or the esc button), the picture goes back to its
-  // original square-ish corners. Adjusting state during render on a prop change
-  // is React's recommended alternative to doing it in an effect.
-  const [wasPlaying, setWasPlaying] = useState(playing);
-  if (playing !== wasPlaying) {
-    setWasPlaying(playing);
-    if (!playing) setMoved(false);
-  }
+  // round while hovered (CSS) or held — touch has no hover, and the cursor can
+  // slip off mid-drag — and back to square once it's let go and left alone
+  const [dragging, setDragging] = useState(false);
   // Touching any screen edge mid-drag starts the game. The ref stops onDrag (which
   // fires every frame) from starting it more than once per grab.
   const dragRef = useRef<HTMLDivElement>(null);
@@ -367,14 +360,19 @@ const Hero = ({
               style={{ x: dragX, y: dragY }}
               onPointerDown={measureDragLimits}
               onDragStart={() => {
-                setMoved(true);
+                setDragging(true);
                 gameTriggered.current = false;
               }}
+              onDragEnd={() => setDragging(false)}
               // brick-breaker on hitting a wall is off for now — uncomment to bring it back
               // onDrag={checkWalls}
               dragConstraints={dragLimits}
-              // small rubber-band past the edge, then it snaps back inside the screen
+              // small rubber-band past the edge
               dragElastic={0.1}
+              // on release it drifts home with a soft spring: low stiffness keeps
+              // the pull gentle, damping keeps the overshoot to a slight settle
+              dragSnapToOrigin
+              dragTransition={{ bounceStiffness: 100, bounceDamping: 14 }}
               className="pointer-events-auto cursor-pointer"
             >
               <Image
@@ -387,7 +385,7 @@ const Hero = ({
                 // 50% rather than rounded-full: rounded-full is an effectively infinite
                 // radius, so the transition would jump instead of smoothly morphing
                 className={`size-10 object-cover transition-[border-radius] duration-300 ease-out hover:rounded-[50%] ${
-                  moved ? "rounded-[50%]" : "rounded-lg"
+                  dragging ? "rounded-[50%]" : "rounded-lg"
                 }`}
               />
             </motion.div>
@@ -513,7 +511,15 @@ const NavItem = ({ children }: { children: React.ReactNode }) => (
 // Rendered inside the hero column, so it inherits the paragraph's font, size and width.
 // ---- Side showcase: two walls of tilted, slowly drifting screenshots ----
 
-const SHOWCASE_IMAGES = ["/image1.png", "/image2.webp", "/image3.jpg", "/image4.jpg"];
+// screenshots of the projects listed on bikash.useiota.space
+const SHOWCASE_IMAGES = [
+  "/projects/zineps.jpg",
+  "/projects/iota.jpg",
+  "/projects/prepara.jpg",
+  "/projects/trition.jpg",
+  "/projects/revpdf.jpg",
+  "/projects/components.jpg",
+];
 // how much of each side of the screen a wall covers (vw)
 const SHOWCASE_WIDTH = 38;
 const SHOWCASE_TILT = 24;
@@ -562,9 +568,9 @@ const ShowcaseWall = ({ side }: { side: "left" | "right" }) => (
       style={{ transform: `rotate(${SHOWCASE_TILT}deg)` }}
     >
       {/* neighbouring columns drift in opposite directions at slightly different speeds */}
-      <ShowcaseColumn shift={side === "left" ? 0 : 2} duration={40} />
-      <ShowcaseColumn shift={side === "left" ? 1 : 3} duration={48} reverse />
-      <ShowcaseColumn shift={side === "left" ? 2 : 0} duration={44} />
+      <ShowcaseColumn shift={side === "left" ? 0 : 3} duration={40} />
+      <ShowcaseColumn shift={side === "left" ? 2 : 5} duration={48} reverse />
+      <ShowcaseColumn shift={side === "left" ? 4 : 1} duration={44} />
     </div>
   </div>
 );
