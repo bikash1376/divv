@@ -94,7 +94,7 @@ const StuffShelf = () => {
       >
         {STUFF.map((item, i) => (
           <div key={i} className="w-[min(78vw,360px)] shrink-0 snap-start">
-            <div className="flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
+            <div className="relative flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
               {item.component ?? <span className="text-sm text-neutral-400">soon</span>}
             </div>
             <p className={`mt-3 px-1 text-sm tracking-tight ${item.component ? "text-neutral-800" : "text-neutral-400"}`}>
