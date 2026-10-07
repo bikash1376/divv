@@ -2,6 +2,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import BrickBreaker from "@/components/BrickBreaker";
+import StuffShelf from "@/components/StuffShelf";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import React, { startTransition, useEffect, useRef, useState, ViewTransition } from "react";
 import {
   AnimatePresence,
@@ -149,7 +152,8 @@ const AlbumCard = ({
               width={200}
               // Sandbox image is ~2:1 (1912×955) — crop every image to that same box
               height={100}
-              style={{ width: 200, height: 100, objectFit: "cover" }}
+              // shrinks on phones so the scattered cards stay on screen
+              style={{ width: "min(200px, 36vw)", height: "auto", aspectRatio: "2 / 1", objectFit: "cover" }}
               alt="album image"
               className="border-gray-300 border"
             />
@@ -163,35 +167,27 @@ const AlbumCard = ({
 };
 
 // Placeholder copy — replace with your own.
-// A line is made of segments; `muted` segments render in the lighter grey,
-// `showcase` segments reveal the drifting image walls on hover.
-// `gap` adds paragraph spacing above a line.
-type HeroSegment = { text: string; muted?: boolean; showcase?: boolean };
-type HeroLine = { segments: HeroSegment[]; gap?: boolean };
+// A paragraph is made of segments; `muted` segments render in the lighter grey,
+// `showcase` segments reveal the drifting image walls on hover, `href` makes a link.
+type HeroSegment = { text: string; muted?: boolean; showcase?: boolean; href?: string };
 
-const HERO_LINES: HeroLine[] = [
-  { segments: [{ text: "Designer & developer crafting interfaces for small teams" }] },
-  { segments: [{ text: "and " }, { text: "tinkering on side projects", muted: true, showcase: true }, { text: "." }] },
-  {
-    gap: true,
-    segments: [
-      { text: "I like " },
-      { text: "playing with motion", muted: true },
-      { text: " and building things that feel alive." },
-    ],
-  },
+const HERO_PARAGRAPHS: HeroSegment[][] = [
+  [
+    { text: "Designer & developer crafting interfaces for small teams, and " },
+    { text: "tinkering on side projects", muted: true, showcase: true },
+    { text: "." },
+  ],
+  [{ text: "I like " }, { text: "playing with motion", muted: true }, { text: " and building things that feel alive." }],
+  [{ text: "Reach out at " }, { text: "you@example.com", href: "mailto:you@example.com" }],
 ];
+
+const CONTACT_HREF = "mailto:you@example.com";
 
 // view-transition name shared by the picture and the game card, so one morphs into the other
 const GAME_MORPH = "pfp-game";
 
 // Placeholder — swap for your own picture (e.g. a file in /public)
 const HERO_IMAGE = "https://images.pexels.com/photos/6984997/pexels-photo-6984997.jpeg";
-
-const CONTACT_LINKS = [
-  { label: "@yourhandle", href: "#" },
-  { label: "you@example.com", href: "mailto:you@example.com" },
-];
 
 // in: delay before the first letter, and between consecutive letters (seconds)
 const HERO_START = 0.2;
@@ -207,16 +203,25 @@ const LETTER_TRAVEL = 24;
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
 // Precompute each letter's position in the whole hero, so both the in and out
-// staggers run continuously from the first line to the last.
-const HERO_LETTERS = (() => {
+// staggers run continuously from the first paragraph to the last. Letters are
+// grouped into words so the paragraphs can wrap between words, never inside one.
+type HeroToken = { space: string } | { letters: { char: string; index: number }[] };
+const HERO_TOKENS = (() => {
   let index = 0;
-  return HERO_LINES.map((line) =>
-    line.segments.map((segment) =>
-      segment.text.split("").map((char) => ({ char, index: index++ })),
+  return HERO_PARAGRAPHS.map((paragraph) =>
+    paragraph.map((segment) =>
+      segment.text
+        .split(/(\s+)/)
+        .filter(Boolean)
+        .map((part): HeroToken =>
+          /^\s+$/.test(part)
+            ? { space: part }
+            : { letters: part.split("").map((char) => ({ char, index: index++ })) },
+        ),
     ),
   );
 })();
-const HERO_LETTER_COUNT = HERO_LETTERS.flat(2).length;
+const HERO_LETTER_COUNT = HERO_TOKENS.flat(2).reduce((n, t) => ("letters" in t ? n + t.letters.length : n), 0);
 
 const HeroLetter = ({
   char,
@@ -331,17 +336,17 @@ const Hero = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex justify-center px-4 pointer-events-none text-neutral-800 tracking-tight"
+      className="relative z-10 flex flex-1 justify-center px-4 pt-6 pb-10 sm:pt-20 text-neutral-800 tracking-tight"
       style={{ fontFamily: "var(--font-inter)" }}
     >
-      {/* full-height column as wide as the longest line; the navbar pins to its
-          top edge, so it spans exactly the paragraph's width */}
-      <div className="relative flex flex-col justify-center w-fit h-full">
+      {/* column runs from the navbar to the bottom of the screen; the navbar pins
+          to its top edge and the game fills it, so both span the text's width */}
+      <div className="relative flex flex-col w-full max-w-[820px] pt-24 sm:pt-28">
         <Navbar progress={progress} />
 
         {/* same two-layer setup as the letters: outer rises in on load, inner rises out on scroll */}
         <motion.div
-          className="mb-4 w-fit"
+          className="mb-8 w-fit"
           initial={{ y: LETTER_TRAVEL, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: HERO_START, duration: 0.6, ease: EASE_OUT }}
@@ -351,7 +356,7 @@ const Hero = ({
                 morph needs one element leaving and another (the game card, same
                 name) arriving in the same transition. */}
             {playing ? (
-              <div className="size-10" />
+              <div className="size-18" />
             ) : (
             <ViewTransition name={GAME_MORPH} share="morph" default="none">
             {/* third layer for dragging, so it doesn't fight the in/out layers over `y` */}
@@ -364,7 +369,8 @@ const Hero = ({
                 setMoved(true);
                 gameTriggered.current = false;
               }}
-              onDrag={checkWalls}
+              // brick-breaker on hitting a wall is off for now — uncomment to bring it back
+              // onDrag={checkWalls}
               dragConstraints={dragLimits}
               // small rubber-band past the edge, then it snaps back inside the screen
               dragElastic={0.1}
@@ -372,15 +378,15 @@ const Hero = ({
             >
               <Image
                 src={HERO_IMAGE}
-                width={40}
-                height={40}
+                width={72}
+                height={72}
                 alt=""
                 // stops the browser's own image drag from hijacking the gesture
                 draggable="false"
                 // 50% rather than rounded-full: rounded-full is an effectively infinite
                 // radius, so the transition would jump instead of smoothly morphing
-                className={`size-10 object-cover transition-[border-radius] duration-300 ease-out hover:rounded-[50%] ${
-                  moved ? "rounded-[50%]" : "rounded-lg"
+                className={`size-18 object-cover transition-[border-radius] duration-300 ease-out hover:rounded-[50%] ${
+                  moved ? "rounded-[50%]" : "rounded-2xl"
                 }`}
               />
             </motion.div>
@@ -389,48 +395,64 @@ const Hero = ({
           </motion.div>
         </motion.div>
 
-        {HERO_LINES.map((line, l) => (
-          <div key={l} className={`relative flex items-end min-h-[1.5em] ${line.gap ? "mt-3" : ""}`}>
-            {/* overflow-hidden clips each letter as it rises into, and later out of, the line */}
-            <div
-              className="flex flex-row items-baseline whitespace-pre leading-none overflow-hidden pt-1 pb-2 text-base"
-              aria-label={line.segments.map((s) => s.text).join("")}
-            >
-              {line.segments.map((segment, s) => (
+        {HERO_PARAGRAPHS.map((paragraph, p) => (
+          <p key={p} className={`text-lg leading-snug ${p ? "mt-5" : ""}`}>
+            <span className="sr-only">{paragraph.map((s) => s.text).join("")}</span>
+            {paragraph.map((segment, s) => {
+              const className = `${segment.muted ? "text-neutral-400" : segment.href ? "text-neutral-950 font-medium" : "text-neutral-800"} ${
+                segment.showcase || segment.href ? "pointer-events-auto cursor-pointer" : ""
+              } ${segment.href ? "transition-colors hover:text-neutral-500" : ""}`;
+              const words = HERO_TOKENS[p][s].map((token, t) =>
+                "space" in token ? (
+                  <React.Fragment key={t}>{token.space}</React.Fragment>
+                ) : (
+                  // overflow-hidden clips each letter as it rises into, and later out of, its word
+                  <span key={t} aria-hidden className="inline-block overflow-hidden align-top">
+                    {token.letters.map(({ char, index }) => (
+                      <HeroLetter key={index} char={char} index={index} progress={progress} />
+                    ))}
+                  </span>
+                ),
+              );
+              return segment.href ? (
+                <a key={s} href={segment.href} aria-hidden tabIndex={-1} className={className}>
+                  {words}
+                </a>
+              ) : (
                 <span
                   key={s}
-                  className={`${segment.muted ? "text-neutral-400" : "text-neutral-800"} ${
-                    segment.showcase ? "pointer-events-auto cursor-pointer" : ""
-                  }`}
+                  className={className}
                   onMouseEnter={segment.showcase ? () => onShowcase(true) : undefined}
                   onMouseLeave={segment.showcase ? () => onShowcase(false) : undefined}
                 >
-                  {HERO_LETTERS[l][s].map(({ char, index }) => (
-                    <HeroLetter key={index} char={char} index={index} progress={progress} />
-                  ))}
+                  {words}
                 </span>
-              ))}
-            </div>
-          </div>
+              );
+            })}
+          </p>
         ))}
 
         <motion.div
-          className="mt-14 flex flex-col"
+          className="mt-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: contactInDelay, duration: 0.6, ease: EASE_OUT }}
         >
-          <motion.div style={{ opacity: contactOpacity }} className="flex flex-col">
-            <span className="text-sm text-neutral-400 mb-1">Contact:</span>
-            {CONTACT_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-base leading-relaxed text-neutral-400 transition-colors hover:text-neutral-800 pointer-events-auto w-fit"
-              >
-                {link.label}
-              </a>
-            ))}
+          <motion.div style={{ opacity: contactOpacity }} className="flex flex-wrap gap-3">
+            <a
+              href={CONTACT_HREF}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 px-5 py-3 text-base text-white transition-all hover:bg-neutral-700 active:scale-96"
+            >
+              get in touch
+              <HugeiconsIcon icon={ArrowUpRight01Icon} size={18} strokeWidth={2} />
+            </a>
+            <button
+              type="button"
+              onClick={() => document.getElementById("stuff")?.scrollIntoView({ behavior: "smooth" })}
+              className="rounded-xl bg-[#F2F2F2] px-5 py-3 text-base text-neutral-800 transition-all hover:bg-[#EAEAEA] active:scale-96 cursor-pointer"
+            >
+              see my stuff
+            </button>
           </motion.div>
         </motion.div>
 
@@ -550,7 +572,7 @@ const Showcase = ({ show }: { show: boolean }) => (
   <AnimatePresence>
     {show && (
       <motion.div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
         initial={{ opacity: 0, scale: 1.04 }}
         animate={{ opacity: SHOWCASE_OPACITY, scale: 1 }}
         exit={{ opacity: 0, scale: 1.04 }}
@@ -574,17 +596,17 @@ const Navbar = ({ progress }: { progress: MotionValue<number> }) => {
 
   return (
     <motion.nav
-      className="absolute top-0 inset-x-0 flex items-center justify-between py-5 text-sm"
+      className="absolute top-0 inset-x-0 flex items-center justify-between py-5 text-base"
       style={{ opacity, y, pointerEvents }}
     >
       <NavItem>
-        <Link href="/" className="text-neutral-800">
+        <Link href="/" className="font-medium text-neutral-900">
           Divv.
         </Link>
       </NavItem>
       <button
         type="button"
-        className="rounded-full bg-[#F2F2F2] px-3 py-1 text-black cursor-pointer"
+        className="rounded-full bg-[#F2F2F2] px-3.5 py-1 text-black cursor-pointer transition-colors hover:bg-[#EAEAEA]"
         onClick={() =>
           window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })
         }
@@ -652,34 +674,48 @@ const AboutPage = () => {
   const section = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: section, offset: ["start start", "end end"] });
   const progress = useTransform(scrollYProgress, easeInOutCubic);
+
+  // the hero leaves as it scrolls off the top of the screen
+  const heroSection = useRef<HTMLDivElement>(null);
+  const { scrollYProgress: heroProgress } = useScroll({ target: heroSection, offset: ["start start", "end start"] });
   const [showcase, setShowcase] = useState(false);
   const [playing, setPlaying] = useState(false);
 
   return (
-    <div
-      ref={section}
-      className="relative bg-[#FBFBFB]"
-      // the stage is one screen tall, so everything beyond that is scroll distance
-      style={{ height: `${100 + SCROLL_LENGTH}vh` }}
-    >
-      <div className="sticky top-0 h-screen overflow-hidden flex items-end justify-center pb-10">
-        {/* first in the stage so the cards and hero paint on top of it */}
+    <div className="bg-[#FBFBFB]">
+      <div ref={heroSection} className="relative flex min-h-svh flex-col">
+        {/* first in the hero so the text paints on top of it */}
         <Showcase show={showcase} />
         <Hero
-          progress={scrollYProgress}
+          progress={heroProgress}
           onShowcase={setShowcase}
-          // inside startTransition so React's <ViewTransition> runs the morph
-          onGameStart={() => startTransition(() => setPlaying(true))}
+          onGameStart={() => {
+            // the game fills the hero column, so make sure all of it is on screen
+            window.scrollTo({ top: 0 });
+            // inside startTransition so React's <ViewTransition> runs the morph
+            startTransition(() => setPlaying(true));
+          }}
           onGameEnd={() => startTransition(() => setPlaying(false))}
           playing={playing}
         />
-        <div className="grid">
-          {ALBUMS.map((album, i) => (
-            <AlbumCard key={album.id} album={album} index={i} total={ALBUMS.length} progress={progress} />
-          ))}
-        </div>
       </div>
 
+      <StuffShelf />
+
+      <div
+        ref={section}
+        className="relative"
+        // the stage is one screen tall, so everything beyond that is scroll distance
+        style={{ height: `${100 + SCROLL_LENGTH}vh` }}
+      >
+        <div className="sticky top-0 h-screen overflow-hidden flex items-end justify-center pb-10">
+          <div className="grid">
+            {ALBUMS.map((album, i) => (
+              <AlbumCard key={album.id} album={album} index={i} total={ALBUMS.length} progress={progress} />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

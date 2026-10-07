@@ -371,7 +371,7 @@ const BrickBreaker = ({
       </ViewTransition>
 
       {/* same spot and type as the navbar: esc where "Divv." is, score where "Stuff" is */}
-      <div className="absolute top-0 inset-x-0 flex items-center justify-between py-5 text-sm">
+      <div className="absolute top-0 inset-x-0 flex items-center justify-between py-5 text-base">
         <button
           type="button"
           onClick={onExit}
