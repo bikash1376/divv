@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useSyncExternalStore } from "react"
+import Loader from "./Loader"
 
 type Kind = "circle" | "star" | "triangle" | "pentagon" | "diamond" | "heart" | "donut" | "plus" | "flower" | "bolt"
 const KINDS: Kind[] = ["circle", "star", "triangle", "pentagon", "diamond"]
@@ -357,6 +358,47 @@ function Mini({ vessel, size }: { vessel: Vessel; size: number }) {
   return <Scene frame={frame} vessel={vessel} theme={THEMES[0]} size={size} />
 }
 
+// Same Pop look, built on the reusable <Loader />: no slivers, 3 shapes when
+// small, and an ending you trigger with the tick.
+function FixedCard({ vessel }: { vessel: Vessel }) {
+  const [playing, setPlaying] = useState(true)
+  const [done, setDone] = useState(false)
+  const btn = "grid size-9 cursor-pointer place-items-center transition active:scale-90 disabled:cursor-default disabled:opacity-40"
+
+  return (
+    <div className="relative flex flex-col items-center rounded-3xl bg-white px-6 pb-14 pt-6">
+      <Loader
+        theme={THEMES[0]}
+        vessel={vessel}
+        size={260}
+        playing={playing}
+        done={done}
+        // The demo starts over shortly after the ending plays
+        onDone={() => setTimeout(() => setDone(false), 700)}
+      />
+      <div className="absolute bottom-3 right-3 flex" style={{ color: ICON }}>
+        <button type="button" className={btn} aria-label="Finish loading" onClick={() => setDone(true)} disabled={done || !playing}>
+          <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden>
+            <path d="M3 8.4 L6.4 11.6 L13 4.6" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button type="button" className={btn} aria-label={playing ? "Pause animation" : "Play animation"} onClick={() => setPlaying(!playing)}>
+          <svg viewBox="0 0 16 16" width={16} height={16} fill="currentColor" aria-hidden>
+            {playing ? (
+              <>
+                <rect x={3} y={2} width={3.6} height={12} rx={1.2} />
+                <rect x={9.4} y={2} width={3.6} height={12} rx={1.2} />
+              </>
+            ) : (
+              <path d="M4.5 2.8 C4.5 1.9 5.4 1.4 6.2 1.9 L13.2 6.4 C13.9 6.9 13.9 8.1 13.2 8.6 L6.2 13.1 C5.4 13.6 4.5 13.1 4.5 12.2 Z" />
+            )}
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Exp() {
   return (
     <main className="min-h-screen px-4 py-16" style={{ background: PAGE_BG }}>
@@ -380,6 +422,23 @@ export default function Exp() {
             <Mini vessel="wok" size={48} />
             <Mini vessel="pan" size={96} />
             <Mini vessel="pan" size={48} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">Fixed</h2>
+          <p className="mt-1 max-w-xl text-sm text-neutral-500">
+            No slivers: shapes hide fully inside the wok and sit half-visible in the pan. Press the tick to play the ending.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <FixedCard vessel="wok" />
+            <FixedCard vessel="pan" />
+          </div>
+          <div className="mt-6 flex items-end justify-center gap-10">
+            <Loader theme={THEMES[0]} vessel="wok" size={96} />
+            <Loader theme={THEMES[0]} vessel="wok" size={48} />
+            <Loader theme={THEMES[0]} vessel="pan" size={96} />
+            <Loader theme={THEMES[0]} vessel="pan" size={48} />
           </div>
         </section>
       </div>
