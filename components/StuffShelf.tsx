@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import HoldToAnimate from "@/components/HoldToAnimate";
 import MobileMenu from "@/components/MobileMenu";
+import PanCompare from "@/components/PanCompare";
 
 // Leave `component` out for a slot that's still being made — it shows as "soon".
 type Stuff = { name: string; component?: React.ReactNode };
@@ -12,7 +13,7 @@ type Stuff = { name: string; component?: React.ReactNode };
 const STUFF: Stuff[] = [
   { name: "Hold button", component: <HoldToAnimate /> },
   { name: "Mobile menu", component: <MobileMenu /> },
-  { name: "Untitled" },
+  { name: "Pan loader", component: <PanCompare /> },
   { name: "Untitled" },
 ];
 
@@ -94,7 +95,7 @@ const StuffShelf = () => {
       >
         {STUFF.map((item, i) => (
           <div key={i} className="w-[min(78vw,360px)] shrink-0 snap-start">
-            <div className="relative flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
+            <div className="group relative flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
               {item.component ?? <span className="text-sm text-neutral-400">soon</span>}
             </div>
             <p className={`mt-3 px-1 text-sm tracking-tight ${item.component ? "text-neutral-800" : "text-neutral-400"}`}>

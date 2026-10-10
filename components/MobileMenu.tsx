@@ -168,7 +168,8 @@ const MenuLayer = ({
 };
 
 const MobileMenu = () => {
-  const [open, setOpen] = useState(false);
+  // starts open so the card shows the menu off
+  const [open, setOpen] = useState(true);
   const [variant, setVariant] = useState<Variant>("subtle");
   const ref = useRef<HTMLDivElement>(null);
   const gooId = `goo-${useId().replace(/:/g, "")}`;
@@ -220,8 +221,9 @@ const MobileMenu = () => {
         </filter>
       </svg>
 
-      {/* fixed box so opening the menu never shifts the card's layout */}
-      <div ref={ref} className="relative h-[220px] w-40">
+      {/* fixed box so opening the menu never shifts the card's layout. It's the
+          size of the open menu, so the open menu sits dead centre in the card. */}
+      <div ref={ref} className="relative h-[178px] w-[97px]">
         {variant === "gooey" ? (
           <>
             <div className="absolute inset-0" style={{ filter: `url(#${gooId})` }}>
@@ -236,7 +238,7 @@ const MobileMenu = () => {
         )}
       </div>
 
-      <div className="absolute inset-x-0 bottom-4 flex justify-center">
+      <div className={`absolute inset-x-0 bottom-4 flex justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100`}>
         <div className="flex gap-1 rounded-full bg-white/70 p-1 text-xs">
           {VARIANTS.map((v) => (
             <button

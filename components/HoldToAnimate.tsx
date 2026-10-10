@@ -6,14 +6,15 @@ import { Edit01Icon } from '@hugeicons/core-free-icons'
 
 const HOLD_MS = 1000
 
-const SIZE = 48
-const STROKE = 2
-const RING_R = 18
+const SIZE = 96
+const STROKE = 3
+const RING_R = 38
 const ACCENT = '#AFE67F' // shared by ring and disc so they read as one shape
 
 const HoldToAnimate = () => {
   const [holding, setHolding] = useState(false)
-  const [done, setDone] = useState(false)
+  // starts finished so the card shows the filled disc; Reset appears on hover
+  const [done, setDone] = useState(true)
 
   const start = () => {
     // pressing again after completion resets instead of re-arming
@@ -23,7 +24,7 @@ const HoldToAnimate = () => {
   const stop = () => setHolding(false)
 
   return (
-    <div className='flex flex-col justify-center items-center gap-10'>
+    <div className='relative'>
       <style>{`
         @keyframes pop {
           0%   { transform: scale(1); opacity: 0; }
@@ -68,17 +69,18 @@ const HoldToAnimate = () => {
             transition: 'opacity 150ms ease-in',
           }}
         >
-          <HugeiconsIcon icon={Edit01Icon} size={18} strokeWidth={2} />
+          <HugeiconsIcon icon={Edit01Icon} size={34} strokeWidth={2} />
         </div>
       </div>
 
+      {/* hangs below the ring so the ring stays dead centre; shows on card hover */}
       <button
         onPointerDown={start}
         onPointerUp={stop}
         onPointerLeave={stop}
         onPointerCancel={stop}
         onContextMenu={(e) => e.preventDefault()}
-        className='text-[#1C1F21] px-6 py-2 bg-white rounded-full hover:bg-[#FAFAFA] active:scale-96 transition-all select-none touch-none cursor-pointer'
+        className='absolute left-1/2 top-full mt-10 -translate-x-1/2 whitespace-nowrap text-[#1C1F21] px-6 py-2 bg-white rounded-full hover:bg-[#FAFAFA] active:scale-96 transition-all select-none touch-none cursor-pointer opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
       >
         {done ? 'Reset' : holding ? 'Keep holding…' : 'Hold to animate'}
       </button>

@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 
 export type Kind = "circle" | "star" | "triangle" | "pentagon" | "diamond" | "heart" | "donut" | "plus" | "flower" | "bolt"
-export type Vessel = "wok" | "pan"
-export type LoaderTheme = { colors: string[]; ink: string; kinds?: Kind[] }
+export type LoaderTheme = { colors: string[]; ink: string; kinds?: Kind[]; scale?: number }
 
 const DEFAULT_KINDS: Kind[] = ["circle", "star", "triangle", "pentagon", "diamond"]
 const START_T = 0.7
@@ -31,21 +30,10 @@ function place(p: Pt, pivot: Pt, deg: number, lift = 0): Pt {
 /* ---------------------------------------------------------------- */
 /* Motion                                                            */
 /*                                                                   */
-/* All positions inside the vessel are in its local (untilted)       */
-/* space. The wok hides shapes fully while they're inside it; the    */
-/* pan always shows the top half. No slivers either way.             */
+/* Positions inside the pan are in its local (untilted) space.       */
+/* Resting shapes always show their top half above the rim, so       */
+/* there are no slivers.                                             */
 /* ---------------------------------------------------------------- */
-
-const WOK = {
-  pivot: { x: 150, y: 140 },
-  cycle: 2.1, // seconds for every shape to be thrown once
-  dwell: 0.55, // beats a shape spends inside before it's thrown again
-  restY: 222, // deep enough that the whole shape is behind the bowl
-  throwX: [128, 172], // throws go from the inside...
-  catchX: [104, 196], // ...catches land on the outside
-  toss: 150,
-  centerX: 150,
-}
 
 const PAN = {
   pivot: { x: 272, y: 232 },
@@ -64,19 +52,12 @@ const STAGGER = 0.08 // between shapes that were already resting when done
 const HOLD = 0.5
 const FADE = 0.3
 
-type Ctx = { vessel: Vessel; n: number; tDone: number | null }
+type Ctx = { n: number; tDone: number | null }
 
-const beatOf = (c: Ctx) => (c.vessel === "wok" ? WOK.cycle : PAN.cycle) / c.n
-const pivotOf = (c: Ctx) => (c.vessel === "wok" ? WOK.pivot : PAN.pivot)
-
+// The pan flicks on every beat and settles once done
 function vesselPose(c: Ctx, t: number) {
   const settling = c.tDone !== null && t > c.tDone
-  const beat = beatOf(c)
-  if (c.vessel === "wok") {
-    const damp = settling ? Math.exp(-(t - c.tDone!) * 2.2) : 1
-    // Positive tilts the left side up; peaks just after a left throw
-    return { angle: 8 * Math.cos(Math.PI * (t / beat) - 0.4) * damp, lift: 0 }
-  }
+  const beat = PAN.cycle / c.n
   const damp = settling ? Math.exp(-(t - c.tDone!) * 7) : 1
   let p = (t / beat) % 1
   if (p > 0.5) p -= 1
@@ -86,7 +67,7 @@ function vesselPose(c: Ctx, t: number) {
 
 const toWorld = (c: Ctx, local: Pt, t: number) => {
   const v = vesselPose(c, t)
-  return place(local, pivotOf(c), v.angle, v.lift)
+  return place(local, PAN.pivot, v.angle, v.lift)
 }
 
 type Phase =
@@ -95,31 +76,6 @@ type Phase =
 
 // Where shape i is in the endless loop at time t
 function phase(c: Ctx, i: number, t: number): Phase {
-  const beat = beatOf(c)
-
-  if (c.vessel === "wok") {
-    const air = c.n - WOK.dwell
-    const beats = t / beat - i
-    const cycle = Math.floor(beats / c.n)
-    const s = beats - cycle * c.n
-    // n is odd, so throws alternate hands and every throw crosses over
-    const from = (i + cycle * c.n) % 2 === 0 ? 0 : 1
-    const to = 1 - from
-    if (s < air) {
-      return {
-        air: true,
-        p: s / air,
-        from: { x: WOK.throwX[from], y: WOK.restY },
-        to: { x: WOK.catchX[to], y: WOK.restY },
-        tThrow: t - s * beat,
-        tLand: t + (air - s) * beat,
-        dir: from ? -1 : 1,
-      }
-    }
-    const q = (s - air) / WOK.dwell
-    return { air: false, q, local: { x: lerp(WOK.catchX[to], WOK.throwX[to], easeInOut(q)), y: WOK.restY } }
-  }
-
   const u = (((t / PAN.cycle - i / c.n) % 1) + 1) % 1
   const start = t - u * PAN.cycle
   if (u < PAN.air) {
@@ -139,7 +95,6 @@ function phase(c: Ctx, i: number, t: number): Phase {
 
 function loopPose(c: Ctx, i: number, t: number): Pose {
   const ph = phase(c, i, t)
-  const toss = c.vessel === "wok" ? WOK.toss : PAN.toss
 
   if (ph.air) {
     const a = toWorld(c, ph.from, ph.tThrow)
@@ -147,7 +102,7 @@ function loopPose(c: Ctx, i: number, t: number): Pose {
     const k = 0.08 * Math.abs(1 - 2 * ph.p)
     return {
       x: lerp(a.x, b.x, ph.p),
-      y: lerp(a.y, b.y, ph.p) - toss * 4 * ph.p * (1 - ph.p),
+      y: lerp(a.y, b.y, ph.p) - PAN.toss * 4 * ph.p * (1 - ph.p),
       sx: 1 - k,
       sy: 1 + k,
       turn: ph.dir * easeInOut(ph.p),
@@ -160,8 +115,8 @@ function loopPose(c: Ctx, i: number, t: number): Pose {
 }
 
 // Once done: no new throws. Shapes in flight finish and land, then each one
-// pops up into its spot in a line above the vessel. The line fills in as
-// shapes come down, the vessel settles, and everything fades.
+// pops up into its spot in a line above the pan. The line fills in as
+// shapes come down, the pan settles, and everything fades.
 function ending(c: Ctx) {
   const tDone = c.tDone!
   let resting = 0
@@ -188,11 +143,10 @@ function shapePose(c: Ctx, i: number, t: number, end: ReturnType<typeof ending> 
 
   const start = toWorld(c, park.from, park.bow)
   const k = clamp01((t - park.bow) / BOW)
-  const cx = c.vessel === "wok" ? WOK.centerX : PAN.centerX
   const e = easeOutBack(k)
   const stretch = 0.15 * Math.sin(Math.PI * k)
   return {
-    x: lerp(start.x, cx + (i - (c.n - 1) / 2) * 38, e),
+    x: lerp(start.x, PAN.centerX + (i - (c.n - 1) / 2) * 38, e),
     y: lerp(start.y, 105, e),
     sx: 1 - stretch,
     sy: 1 + stretch,
@@ -254,17 +208,6 @@ export function Shape({ kind, fill }: { kind: Kind; fill: string }) {
   }
 }
 
-function WokBody({ ink }: { ink: string }) {
-  return (
-    <>
-      <ellipse cx={58} cy={204} rx={12} ry={15} fill="none" stroke={ink} strokeWidth={7} />
-      <ellipse cx={242} cy={204} rx={12} ry={15} fill="none" stroke={ink} strokeWidth={7} />
-      <path d="M66 200 H234 Q232 266 150 270 Q68 266 66 200 Z" fill={ink} />
-      <rect x={62} y={195} width={176} height={9} rx={4.5} fill={ink} />
-    </>
-  )
-}
-
 function PanBody({ ink }: { ink: string }) {
   return (
     <>
@@ -291,7 +234,6 @@ function useReducedMotion() {
 
 type LoaderProps = {
   theme: LoaderTheme
-  vessel?: Vessel
   size?: number
   /** 3 or 5 shapes. Defaults to 3 below 72px, where 5 turns to noise. */
   count?: 3 | 5
@@ -306,7 +248,6 @@ type LoaderProps = {
 
 export default function Loader({
   theme,
-  vessel = "wok",
   size = 96,
   count,
   playing = true,
@@ -326,7 +267,7 @@ export default function Loader({
     onDoneRef.current = onDone
   })
 
-  const ctx: Ctx = { vessel, n, tDone: clock.doneAt }
+  const ctx: Ctx = { n, tDone: clock.doneAt }
   const end = clock.doneAt === null ? null : ending(ctx)
   const finished = end !== null && clock.t >= end.tEnd
   const running = playing && !reduced && !(finished && done)
@@ -350,26 +291,51 @@ export default function Loader({
   }, [finished, done])
 
   const t = end ? Math.min(clock.t, end.tEnd) : clock.t
-  const v = vesselPose(ctx, t)
-  const pivot = pivotOf(ctx)
-  const kinds = (theme.kinds ?? DEFAULT_KINDS).slice(0, n)
   const opacity = end ? clamp01((end.tEnd - t) / FADE) : 1
 
   return (
     <div role="status" aria-label={label} className={className}>
       <svg viewBox="0 0 300 300" width={size} height={size} className="h-auto max-w-full" style={{ opacity }} aria-hidden>
-        {kinds.map((kind, i) => {
-          const p = shapePose(ctx, i, t, end)
-          return (
-            <g key={i} transform={`translate(${p.x} ${p.y}) scale(${p.sx} ${p.sy}) rotate(${p.turn * 360})`}>
-              <Shape kind={kind} fill={theme.colors[i]} />
-            </g>
-          )
-        })}
-        <g transform={`translate(0 ${-v.lift}) rotate(${v.angle} ${pivot.x} ${pivot.y})`}>
-          {vessel === "wok" ? <WokBody ink={theme.ink} /> : <PanBody ink={theme.ink} />}
-        </g>
+        <Art ctx={ctx} t={t} end={end} theme={theme} />
       </svg>
     </div>
   )
 }
+
+function Art({ ctx, t, end, theme }: { ctx: Ctx; t: number; end: ReturnType<typeof ending> | null; theme: LoaderTheme }) {
+  const v = vesselPose(ctx, t)
+  const kinds = (theme.kinds ?? DEFAULT_KINDS).slice(0, ctx.n)
+  const s = theme.scale ?? 1
+  return (
+    <>
+      {kinds.map((kind, i) => {
+        const p = shapePose(ctx, i, t, end)
+        return (
+          <g key={i} transform={`translate(${p.x} ${p.y}) scale(${p.sx * s} ${p.sy * s}) rotate(${p.turn * 360})`}>
+            <Shape kind={kind} fill={theme.colors[i]} />
+          </g>
+        )
+      })}
+      <g transform={`translate(0 ${-v.lift}) rotate(${v.angle} ${PAN.pivot.x} ${PAN.pivot.y})`}>
+        <PanBody ink={theme.ink} />
+      </g>
+    </>
+  )
+}
+
+/**
+ * The pan at time t, for drawing inside your own 300x300 SVG. Pass tDone (the
+ * time loading finished) to play the ending; it's over at panEndAt(tDone).
+ */
+export function PanFrame({ t, theme, count = 5, tDone = null }: { t: number; theme: LoaderTheme; count?: 3 | 5; tDone?: number | null }) {
+  const ctx: Ctx = { n: count, tDone }
+  const end = tDone === null ? null : ending(ctx)
+  const tt = end ? Math.min(t, end.tEnd) : t
+  return (
+    <g opacity={end ? clamp01((end.tEnd - tt) / FADE) : 1}>
+      <Art ctx={ctx} t={tt} end={end} theme={theme} />
+    </g>
+  )
+}
+
+export const panEndAt = (tDone: number, count: 3 | 5 = 5) => ending({ n: count, tDone }).tEnd

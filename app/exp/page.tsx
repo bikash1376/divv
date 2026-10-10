@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState, useSyncExternalStore } from "react"
-import Loader from "./Loader"
+import Loader from "@/components/PanLoader"
+import { SCENES, SceneArt, type Scene } from "@/components/tossScenes"
 
 type Kind = "circle" | "star" | "triangle" | "pentagon" | "diamond" | "heart" | "donut" | "plus" | "flower" | "bolt"
 const KINDS: Kind[] = ["circle", "star", "triangle", "pentagon", "diamond"]
 
-type Vessel = "wok" | "pan"
 type Pose = { x: number; y: number; sx: number; sy: number; turn: number }
 type Frame = { angle: number; lift: number; shapes: Pose[] }
 
@@ -61,63 +61,6 @@ function place(x: number, y: number, pivot: Pt, deg: number, lift = 0): Pt {
     x: pivot.x + dx * Math.cos(a) - dy * Math.sin(a),
     y: pivot.y + dx * Math.sin(a) + dy * Math.cos(a) - lift,
   }
-}
-
-/* ---------------------------------------------------------------- */
-/* Wok: two rims run a 5-ball cascade, the wok rocks like a pendulum */
-/* ---------------------------------------------------------------- */
-
-const WOK_PIVOT = { x: 150, y: 140 }
-const W_BEAT = 0.42 // one throw per beat, alternating sides
-const W_DWELL = 0.55 // beats a shape sits in the wok before it's thrown again
-const W_REST_Y = 196
-const W_THROW_X = [122, 178] // throws go from the inside...
-const W_CATCH_X = [84, 216] // ...catches land on the outside
-const W_TOSS_H = 150
-
-// Positive tilts the left side up. Peaks just after a left throw.
-const tilt = (t: number) => 8 * Math.cos(Math.PI * (t / W_BEAT) - 0.4)
-
-function wokFrame(t: number): Frame {
-  const n = KINDS.length
-  const air = n - W_DWELL
-
-  const shapes = KINDS.map((_, i): Pose => {
-    // Shape i is thrown on beat i, then again every n beats, alternating hands
-    const beats = t / W_BEAT - i
-    const cycle = Math.floor(beats / n)
-    const s = beats - cycle * n
-    const from = (i + cycle * n) % 2 === 0 ? 0 : 1
-    const to = 1 - from
-    const tThrow = t - s * W_BEAT
-
-    if (s < air) {
-      const p = s / air
-      const a = place(W_THROW_X[from], W_REST_Y, WOK_PIVOT, tilt(tThrow))
-      const b = place(W_CATCH_X[to], W_REST_Y, WOK_PIVOT, tilt(tThrow + air * W_BEAT))
-      const k = 0.08 * Math.abs(1 - 2 * p)
-      return {
-        x: a.x + (b.x - a.x) * p,
-        y: a.y + (b.y - a.y) * p - W_TOSS_H * 4 * p * (1 - p),
-        sx: 1 - k,
-        sy: 1 + k,
-        turn: (from ? -1 : 1) * easeInOut(p),
-      }
-    }
-
-    // In the wok: scoop from the catch point to the throw point
-    const q = (s - air) / W_DWELL
-    const pt = place(
-      W_CATCH_X[to] + (W_THROW_X[to] - W_CATCH_X[to]) * easeInOut(q),
-      W_REST_Y + 10 * Math.sin(Math.PI * q),
-      WOK_PIVOT,
-      tilt(t),
-    )
-    const k = q < 0.4 ? Math.sin((Math.PI * q) / 0.4) : 0
-    return { ...pt, sx: 1 + 0.2 * k, sy: 1 - 0.25 * k, turn: tilt(t) / 360 }
-  })
-
-  return { angle: tilt(t), lift: 0, shapes }
 }
 
 /* ---------------------------------------------------------------- */
@@ -192,7 +135,7 @@ const THEMES: Theme[] = [
   {
     id: "pop",
     title: "Pop",
-    blurb: "Toy-box primaries on black vessels.",
+    blurb: "Toy-box primaries on a black pan.",
     colors: POP,
     ink: INK,
     card: "bg-white",
@@ -208,7 +151,7 @@ const THEMES: Theme[] = [
   {
     id: "material",
     title: "Material",
-    blurb: "M3 tone-80 pastels with a primary-purple vessel.",
+    blurb: "M3 tone-80 pastels with a primary-purple pan.",
     colors: ["#F2B8B5", "#FDD663", "#A8C7FA", "#D0BCFF", "#A8DAB5"],
     ink: "#6750A4",
     card: "bg-[#F7F2FA]",
@@ -278,17 +221,6 @@ function Shape({ kind, fill }: { kind: Kind; fill: string }) {
   }
 }
 
-function WokBody({ ink }: { ink: string }) {
-  return (
-    <>
-      <ellipse cx={58} cy={204} rx={12} ry={15} fill="none" stroke={ink} strokeWidth={7} />
-      <ellipse cx={242} cy={204} rx={12} ry={15} fill="none" stroke={ink} strokeWidth={7} />
-      <path d="M66 200 H234 Q232 266 150 270 Q68 266 66 200 Z" fill={ink} />
-      <rect x={62} y={195} width={176} height={9} rx={4.5} fill={ink} />
-    </>
-  )
-}
-
 function PanBody({ ink }: { ink: string }) {
   return (
     <>
@@ -299,9 +231,8 @@ function PanBody({ ink }: { ink: string }) {
   )
 }
 
-function Scene({ frame, vessel, theme, size }: { frame: Frame; vessel: Vessel; theme: Theme; size: number }) {
-  const pivot = vessel === "wok" ? WOK_PIVOT : PAN_PIVOT
-  const vt = `translate(0 ${-frame.lift}) rotate(${frame.angle} ${pivot.x} ${pivot.y})`
+function Scene({ frame, theme, size }: { frame: Frame; theme: Theme; size: number }) {
+  const vt = `translate(0 ${-frame.lift}) rotate(${frame.angle} ${PAN_PIVOT.x} ${PAN_PIVOT.y})`
   const kinds = theme.kinds ?? KINDS
 
   return (
@@ -311,7 +242,9 @@ function Scene({ frame, vessel, theme, size }: { frame: Frame; vessel: Vessel; t
           <Shape kind={kinds[i]} fill={theme.colors[i]} />
         </g>
       ))}
-      <g transform={vt}>{vessel === "wok" ? <WokBody ink={theme.ink} /> : <PanBody ink={theme.ink} />}</g>
+      <g transform={vt}>
+        <PanBody ink={theme.ink} />
+      </g>
     </svg>
   )
 }
@@ -320,16 +253,16 @@ function Scene({ frame, vessel, theme, size }: { frame: Frame; vessel: Vessel; t
 /* Cards                                                             */
 /* ---------------------------------------------------------------- */
 
-function LoaderCard({ theme, vessel }: { theme: Theme; vessel: Vessel }) {
+function LoaderCard({ theme }: { theme: Theme }) {
   const reduced = useReducedMotion()
   const [choice, setChoice] = useState<boolean | null>(null)
   const playing = choice ?? !reduced
   const t = useClock(playing)
-  const frame = vessel === "wok" ? wokFrame(t) : panFrame(t)
+  const frame = panFrame(t)
 
   return (
     <div className={`relative flex flex-col items-center rounded-3xl px-6 pb-14 pt-6 ${theme.card}`}>
-      <Scene frame={frame} vessel={vessel} theme={theme} size={260} />
+      <Scene frame={frame} theme={theme} size={260} />
       <button
         type="button"
         onClick={() => setChoice(!playing)}
@@ -352,15 +285,15 @@ function LoaderCard({ theme, vessel }: { theme: Theme; vessel: Vessel }) {
   )
 }
 
-function Mini({ vessel, size }: { vessel: Vessel; size: number }) {
+function Mini({ size }: { size: number }) {
   const t = useClock(!useReducedMotion())
-  const frame = vessel === "wok" ? wokFrame(t) : panFrame(t)
-  return <Scene frame={frame} vessel={vessel} theme={THEMES[0]} size={size} />
+  const frame = panFrame(t)
+  return <Scene frame={frame} theme={THEMES[0]} size={size} />
 }
 
 // Same Pop look, built on the reusable <Loader />: no slivers, 3 shapes when
 // small, and an ending you trigger with the tick.
-function FixedCard({ vessel }: { vessel: Vessel }) {
+function FixedCard() {
   const [playing, setPlaying] = useState(true)
   const [done, setDone] = useState(false)
   const btn = "grid size-9 cursor-pointer place-items-center transition active:scale-90 disabled:cursor-default disabled:opacity-40"
@@ -369,7 +302,6 @@ function FixedCard({ vessel }: { vessel: Vessel }) {
     <div className="relative flex flex-col items-center rounded-3xl bg-white px-6 pb-14 pt-6">
       <Loader
         theme={THEMES[0]}
-        vessel={vessel}
         size={260}
         playing={playing}
         done={done}
@@ -399,46 +331,92 @@ function FixedCard({ vessel }: { vessel: Vessel }) {
   )
 }
 
+// Server and browser trig differ in the last decimals, so scenes draw only
+// once mounted to avoid hydration mismatches.
+const noop = () => () => {}
+const useMounted = () => useSyncExternalStore(noop, () => true, () => false)
+
+// Paused by default so the page stays light; press play to run one.
+function SceneCard({ scene }: { scene: Scene }) {
+  const [playing, setPlaying] = useState(false)
+  const t = useClock(playing) - START_T + scene.poster
+  const mounted = useMounted()
+
+  return (
+    <div className="flex flex-col">
+      <h3 className="text-base font-semibold tracking-tight text-[#1d1b19]">{scene.title}</h3>
+      <p className="mb-3 mt-0.5 text-sm text-neutral-500">{scene.blurb}</p>
+      <div className="relative mt-auto flex justify-center rounded-3xl bg-white px-6 pb-12 pt-4">
+        <svg viewBox="0 0 300 300" width={240} height={240} className="h-auto max-w-full" aria-hidden>
+          {mounted && <SceneArt scene={scene} t={t} />}
+        </svg>
+        <button
+          type="button"
+          onClick={() => setPlaying(!playing)}
+          aria-label={playing ? `Pause ${scene.title}` : `Play ${scene.title}`}
+          className="absolute bottom-3 right-3 grid size-9 cursor-pointer place-items-center transition active:scale-90"
+          style={{ color: ICON }}
+        >
+          <svg viewBox="0 0 16 16" width={16} height={16} fill="currentColor" aria-hidden>
+            {playing ? (
+              <>
+                <rect x={3} y={2} width={3.6} height={12} rx={1.2} />
+                <rect x={9.4} y={2} width={3.6} height={12} rx={1.2} />
+              </>
+            ) : (
+              <path d="M4.5 2.8 C4.5 1.9 5.4 1.4 6.2 1.9 L13.2 6.4 C13.9 6.9 13.9 8.1 13.2 8.6 L6.2 13.1 C5.4 13.6 4.5 13.1 4.5 12.2 Z" />
+            )}
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Exp() {
   return (
     <main className="min-h-screen px-4 py-16" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-4xl space-y-14">
-        {THEMES.map((theme) => (
-          <section key={theme.id}>
-            <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">{theme.title}</h2>
-            <p className="mt-1 max-w-xl text-sm text-neutral-500">{theme.blurb}</p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <LoaderCard theme={theme} vessel="wok" />
-              <LoaderCard theme={theme} vessel="pan" />
+      <div className="mx-auto max-w-3xl space-y-14">
+        <section>
+          <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">Styles</h2>
+          <div className="mt-5 grid gap-x-4 gap-y-10 sm:grid-cols-2">
+            {THEMES.map((theme) => (
+              <div key={theme.id} className="flex flex-col">
+                <h3 className="text-base font-semibold tracking-tight text-[#1d1b19]">{theme.title}</h3>
+                <p className="mt-0.5 text-sm text-neutral-500">{theme.blurb}</p>
+                <div className="mt-auto pt-3">
+                  <LoaderCard theme={theme} />
+                </div>
+              </div>
+            ))}
+            <div className="flex flex-col">
+              <h3 className="text-base font-semibold tracking-tight text-[#1d1b19]">Fixed</h3>
+              <p className="mt-0.5 text-sm text-neutral-500">No slivers: shapes always sit half-visible in the pan. Press the tick to play the ending.</p>
+              <div className="mt-auto pt-3">
+                <FixedCard />
+              </div>
             </div>
-          </section>
-        ))}
+          </div>
+        </section>
 
         {/* Loader sizes, to check they still read small */}
         <section>
           <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">At loader size</h2>
           <div className="mt-5 flex items-end justify-center gap-10">
-            <Mini vessel="wok" size={96} />
-            <Mini vessel="wok" size={48} />
-            <Mini vessel="pan" size={96} />
-            <Mini vessel="pan" size={48} />
+            <Mini size={96} />
+            <Mini size={48} />
+            <Loader theme={THEMES[0]} size={96} />
+            <Loader theme={THEMES[0]} size={48} />
           </div>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">Fixed</h2>
-          <p className="mt-1 max-w-xl text-sm text-neutral-500">
-            No slivers: shapes hide fully inside the wok and sit half-visible in the pan. Press the tick to play the ending.
-          </p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <FixedCard vessel="wok" />
-            <FixedCard vessel="pan" />
-          </div>
-          <div className="mt-6 flex items-end justify-center gap-10">
-            <Loader theme={THEMES[0]} vessel="wok" size={96} />
-            <Loader theme={THEMES[0]} vessel="wok" size={48} />
-            <Loader theme={THEMES[0]} vessel="pan" size={96} />
-            <Loader theme={THEMES[0]} vessel="pan" size={48} />
+          <h2 className="text-lg font-semibold tracking-tight text-[#1d1b19]">More vessels</h2>
+          <p className="mt-1 max-w-xl text-sm text-neutral-500">Other things that toss and catch. These start paused.</p>
+          <div className="mt-5 grid gap-x-4 gap-y-10 sm:grid-cols-2">
+            {SCENES.map((scene) => (
+              <SceneCard key={scene.id} scene={scene} />
+            ))}
           </div>
         </section>
       </div>
