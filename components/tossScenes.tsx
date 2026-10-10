@@ -30,11 +30,12 @@ type ShapeProps = { k: number; x: number; y: number; sx?: number; sy?: number; r
 // Shape k from the look, with squash (sx/sy), spin (r) and scale (s)
 function S({ k, x, y, sx = 1, sy = 1, r = 0, s = 1 }: ShapeProps) {
   const look = useContext(LookContext)
-  const i = ((k % 5) + 5) % 5
+  const kinds = look.kinds ?? KINDS
+  const i = ((k % kinds.length) + kinds.length) % kinds.length
   const size = s * (look.scale ?? 1)
   return (
     <g transform={`translate(${x} ${y}) scale(${sx * size} ${sy * size}) rotate(${r})`}>
-      <Shape kind={(look.kinds ?? KINDS)[i]} fill={look.colors[i]} />
+      <Shape kind={kinds[i]} fill={look.colors[i % look.colors.length]} />
     </g>
   )
 }
@@ -56,13 +57,14 @@ function shaker(t: number, look: Look) {
   const capUp = u >= 1.2 && u < 2.3 ? 75 * 4 * w * (1 - w) : 0
   const capSpin = u >= 1.2 && u < 2.3 ? 360 * ease(w) : 0
 
-  const shapes = Array.from({ length: 5 }, (_, i) => {
-    const start = 1.25 + i * 0.08
+  const n = (look.kinds ?? KINDS).length
+  const shapes = Array.from({ length: n }, (_, i) => {
+    const start = 1.25 + (i * 0.4) / n
     const p = (u - start) / 0.85
     if (p < 0 || p > 1) return null
     const h = 105 + 18 * (i % 3)
     return (
-      <S key={i} k={i} x={150 + (i - 2) * 30 * Math.sin(Math.PI * p)} y={172 - h * 4 * p * (1 - p)} {...stretch(p)} r={(i % 2 ? -1 : 1) * 360 * p} />
+      <S key={i} k={i} x={150 + (i - (n - 1) / 2) * (120 / (n - 1)) * Math.sin(Math.PI * p)} y={172 - h * 4 * p * (1 - p)} {...stretch(p)} r={(i % 2 ? -1 : 1) * 360 * p} />
     )
   })
 
@@ -85,8 +87,9 @@ function whisk(t: number, look: Look) {
   const omega = (2 * Math.PI) / 1.6
   const c = { x: 150, y: 186 }
 
-  const items = Array.from({ length: 5 }, (_, i) => {
-    const th = omega * t + (i * 2 * Math.PI) / 5
+  const n = (look.kinds ?? KINDS).length
+  const items = Array.from({ length: n }, (_, i) => {
+    const th = omega * t + (i * 2 * Math.PI) / n
     const depth = Math.sin(th)
     const hop = 9 * Math.max(0, Math.sin(3 * th + i))
     return {
@@ -120,7 +123,7 @@ function whisk(t: number, look: Look) {
 // Toaster: two shapes pop up together, the lever snaps, the next pair.
 function toaster(t: number, look: Look) {
   const period = 1.8
-  const pair = Math.floor(t / period) % 2
+  const pair = Math.floor(t / period) % Math.floor((look.kinds ?? KINDS).length / 2)
   const u = frac(t / period)
   const pop = u >= 0.55 ? (u - 0.55) / 0.45 : -1
   const lever = u < 0.1 ? lerp(200, 236, ease(u / 0.1)) : u < 0.55 ? 236 : 200

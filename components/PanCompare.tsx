@@ -53,7 +53,7 @@ function useClock(playing: boolean) {
 const Art = ({ t, theme }: { t: number; theme: LoaderTheme }) => (
   <svg
     viewBox="0 0 300 300"
-    className="absolute inset-0 m-auto w-[88%]"
+    className="absolute inset-0 m-auto w-[62%] overflow-visible"
     aria-hidden
   >
     <PanFrame t={t} theme={theme} />

@@ -22,9 +22,10 @@ const PALETTES = {
 };
 type PaletteId = keyof typeof PALETTES;
 
-const SHAPE_SETS: Record<"classic" | "kit", { label: string; kinds: Kind[] }> = {
+const SHAPE_SETS: Record<"classic" | "kit" | "mix", { label: string; kinds: Kind[] }> = {
   classic: { label: "Classic", kinds: ["circle", "star", "triangle", "pentagon", "diamond"] },
   kit: { label: "Kit", kinds: ["heart", "donut", "plus", "flower", "bolt"] },
+  mix: { label: "Mix", kinds: ["circle", "heart", "star", "donut", "triangle", "plus", "pentagon", "flower", "diamond", "bolt"] },
 };
 type ShapeSetId = keyof typeof SHAPE_SETS;
 
@@ -203,7 +204,7 @@ const PanPlayground = ({ open, onClose, origin, onExitComplete, playing, onToggl
   const scene = SCENES.find((s) => s.id === settings.vessel);
 
   // The ending runs until it's faded out, then the loop carries on from wherever it is
-  const ending = settings.vessel === "pan" && tDone !== null && t <= panEndAt(tDone) + 0.6 ? tDone : null;
+  const ending = settings.vessel === "pan" && tDone !== null && t <= panEndAt(tDone, look.kinds!.length) + 0.6 ? tDone : null;
 
   // The stage animates its real box (not a scale), so the drawing never stretches.
   // An empty slot in the layout says where it should end up.
@@ -264,8 +265,8 @@ const PanPlayground = ({ open, onClose, origin, onExitComplete, playing, onToggl
                 animate={{ opacity: 1, transition: { duration: 0.25 } }}
                 exit={{ opacity: 0, transition: { duration: 0.15 } }}
               >
-                <svg viewBox="0 0 300 300" className="h-full max-h-[360px] w-full max-w-[360px] overflow-visible" aria-hidden>
-                  {scene ? <SceneArt scene={scene} t={t} look={look} /> : <PanFrame t={t} theme={look} tDone={ending} />}
+                <svg viewBox="0 0 300 300" className="h-full max-h-[260px] w-full max-w-[260px] overflow-visible" aria-hidden>
+                  {scene ? <SceneArt scene={scene} t={t} look={look} /> : <PanFrame t={t} theme={look} count={look.kinds!.length} tDone={ending} />}
                 </svg>
               </motion.div>
 

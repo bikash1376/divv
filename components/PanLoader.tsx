@@ -312,7 +312,7 @@ function Art({ ctx, t, end, theme }: { ctx: Ctx; t: number; end: ReturnType<type
         const p = shapePose(ctx, i, t, end)
         return (
           <g key={i} transform={`translate(${p.x} ${p.y}) scale(${p.sx * s} ${p.sy * s}) rotate(${p.turn * 360})`}>
-            <Shape kind={kind} fill={theme.colors[i]} />
+            <Shape kind={kind} fill={theme.colors[i % theme.colors.length]} />
           </g>
         )
       })}
@@ -327,7 +327,7 @@ function Art({ ctx, t, end, theme }: { ctx: Ctx; t: number; end: ReturnType<type
  * The pan at time t, for drawing inside your own 300x300 SVG. Pass tDone (the
  * time loading finished) to play the ending; it's over at panEndAt(tDone).
  */
-export function PanFrame({ t, theme, count = 5, tDone = null }: { t: number; theme: LoaderTheme; count?: 3 | 5; tDone?: number | null }) {
+export function PanFrame({ t, theme, count = 5, tDone = null }: { t: number; theme: LoaderTheme; count?: number; tDone?: number | null }) {
   const ctx: Ctx = { n: count, tDone }
   const end = tDone === null ? null : ending(ctx)
   const tt = end ? Math.min(t, end.tEnd) : t
@@ -338,4 +338,4 @@ export function PanFrame({ t, theme, count = 5, tDone = null }: { t: number; the
   )
 }
 
-export const panEndAt = (tDone: number, count: 3 | 5 = 5) => ending({ n: count, tDone }).tEnd
+export const panEndAt = (tDone: number, count = 5) => ending({ n: count, tDone }).tEnd
