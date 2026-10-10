@@ -174,6 +174,20 @@ const MobileMenu = () => {
   const ref = useRef<HTMLDivElement>(null);
   const gooId = `goo-${useId().replace(/:/g, "")}`;
   const blurRef = useRef<SVGFEGaussianBlurElement>(null);
+  // bumped on every variant pick, so the menu remounts and plays its opening fresh
+  const [take, setTake] = useState(0);
+  const reopen = useRef(0);
+  useEffect(() => () => clearTimeout(reopen.current), []);
+
+  // Picking a variant shows it off: snap shut, swap, then open with the new style
+  const pickVariant = (v: Variant) => {
+    clearTimeout(reopen.current);
+    setOpen(false);
+    setVariant(v);
+    setTake((t) => t + 1);
+    blurRef.current?.setAttribute("stdDeviation", String(GOO_BLUR));
+    reopen.current = window.setTimeout(() => setOpen(true), 80);
+  };
 
   // Gooey: full blur while the bubbles squeeze out (or back in), then once they've
   // landed it eases to 0 so they come apart into crisp separate bubbles.
@@ -223,7 +237,7 @@ const MobileMenu = () => {
 
       {/* fixed box so opening the menu never shifts the card's layout. It's the
           size of the open menu, so the open menu sits dead centre in the card. */}
-      <div ref={ref} className="relative h-[178px] w-[97px]">
+      <div ref={ref} key={take} className="relative h-[178px] w-[97px]">
         {variant === "gooey" ? (
           <>
             <div className="absolute inset-0" style={{ filter: `url(#${gooId})` }}>
@@ -244,10 +258,7 @@ const MobileMenu = () => {
             <button
               key={v}
               type="button"
-              onClick={() => {
-                setOpen(false);
-                setVariant(v);
-              }}
+              onClick={() => pickVariant(v)}
               className={`rounded-full px-2.5 py-1 transition-colors cursor-pointer ${
                 v === variant ? "bg-white text-neutral-800 shadow-sm" : "text-neutral-400 hover:text-neutral-700"
               }`}
