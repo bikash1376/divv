@@ -5,8 +5,6 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 import { PanFrame, type LoaderTheme } from "@/components/PanLoader";
 import PanPlayground, { type Rect } from "@/components/PanPlayground";
 
@@ -179,11 +177,13 @@ const PanCompare = () => {
             aria-label="Open playground"
             className="grid size-9 cursor-pointer place-items-center transition active:scale-90"
           >
-            <HugeiconsIcon
-              icon={FilterHorizontalIcon}
-              size={18}
-              strokeWidth={2}
-            />
+            {/* solid sliders, to match the filled play/pause glyph */}
+            <svg viewBox="0 0 16 16" width={16} height={16} fill="currentColor" aria-hidden>
+              <rect x={1} y={4.1} width={14} height={1.8} rx={0.9} />
+              <rect x={1} y={10.1} width={14} height={1.8} rx={0.9} />
+              <circle cx={10.5} cy={5} r={2.6} />
+              <circle cx={5.5} cy={11} r={2.6} />
+            </svg>
           </button>
         </div>
       </div>
