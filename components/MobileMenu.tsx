@@ -102,13 +102,11 @@ const MenuLayer = ({
   variant,
   open,
   onToggle,
-  onPick,
 }: {
   layer: Layer;
   variant: Variant;
   open: boolean;
   onToggle: () => void;
-  onPick: () => void;
 }) => {
   const interactive = layer !== "blob";
   return (
@@ -153,7 +151,6 @@ const MenuLayer = ({
                 <button
                   type="button"
                   tabIndex={interactive ? undefined : -1}
-                  onClick={onPick}
                   className={`inline-flex h-11 items-center whitespace-nowrap rounded-full px-5 text-[15px] font-medium cursor-pointer ${BUBBLE_STYLE[layer]}`}
                 >
                   {label}
@@ -171,7 +168,6 @@ const MobileMenu = () => {
   // starts open so the card shows the menu off
   const [open, setOpen] = useState(true);
   const [variant, setVariant] = useState<Variant>("subtle");
-  const ref = useRef<HTMLDivElement>(null);
   const gooId = `goo-${useId().replace(/:/g, "")}`;
   const blurRef = useRef<SVGFEGaussianBlurElement>(null);
   // bumped on every variant pick, so the menu remounts and plays its opening fresh
@@ -202,26 +198,10 @@ const MobileMenu = () => {
     return () => controls.stop();
   }, [open, variant]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    // a tap anywhere outside the button and its bubbles closes the menu
-    const onDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onDown);
-    };
-  }, [open]);
-
   const layerProps = {
     variant,
     open,
     onToggle: () => setOpen((o) => !o),
-    onPick: () => setOpen(false),
   };
 
   return (
@@ -237,7 +217,7 @@ const MobileMenu = () => {
 
       {/* fixed box so opening the menu never shifts the card's layout. It's the
           size of the open menu, so the open menu sits dead centre in the card. */}
-      <div ref={ref} key={take} className="relative h-[178px] w-[97px]">
+      <div key={take} className="relative h-[178px] w-[97px]">
         {variant === "gooey" ? (
           <>
             <div className="absolute inset-0" style={{ filter: `url(#${gooId})` }}>

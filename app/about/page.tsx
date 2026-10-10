@@ -28,10 +28,10 @@ const HERO_PARAGRAPHS: HeroSegment[][] = [
     { text: "." },
   ],
   [{ text: "I like " }, { text: "playing with motion", muted: true }, { text: " and building things that feel alive." }],
-  [{ text: "Reach out at " }, { text: "you@example.com", href: "mailto:you@example.com" }],
+  [{ text: "Reach out at " }, { text: "bikash13763@gmail.com", href: "mailto:bikash13763@gmail.com" }],
 ];
 
-const CONTACT_HREF = "mailto:you@example.com";
+const CONTACT_HREF = "https://x.com/bikash1376";
 
 // view-transition name shared by the picture and the game card, so one morphs into the other
 const GAME_MORPH = "pfp-game";
@@ -290,6 +290,8 @@ const Hero = ({
           <motion.div style={{ opacity: contactOpacity }} className="flex flex-wrap gap-3">
             <a
               href={CONTACT_HREF}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 px-5 py-3 text-base text-white transition-all hover:bg-neutral-700 active:scale-96"
             >
               get in touch
