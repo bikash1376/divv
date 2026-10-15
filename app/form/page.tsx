@@ -53,6 +53,7 @@ export default function FormPage() {
               blend={67}
               blendMode="normal-oklab"
               colorA="#7c3aed"
+              // colorA="#7c3aed"
               colorB="#ffffff00"
               colorSpace="oklab"
               detail={1.5}
