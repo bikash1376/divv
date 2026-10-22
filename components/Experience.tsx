@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import Reveal from "@/components/Reveal";
 
 // Work history. `details` makes the row expandable on click; `href` links the company.
 type Job = { when: string; role: string; company?: string; details?: string; href?: string };
@@ -10,7 +11,7 @@ const JOBS: Job[] = [
   {
     when: "2025 – Present",
     role: "Software Consultant",
-    company: "Self-Employed",
+    // company: "Self-Employed",
     details: "Shipped 4+ projects for clients, both local and international.",
   },
   { when: "2024", role: "Builder", company: "buildspace", href: "https://buildspace.so" },
@@ -102,17 +103,17 @@ const JobRow = ({ job }: { job: Job }) => {
 };
 
 const Experience = () => (
-  <section className="bg-[#FBFBFB] pb-32 pt-8" style={{ fontFamily: "var(--font-inter)" }}>
+  <Reveal className="bg-[#FBFBFB] pb-32 pt-8" style={{ fontFamily: "var(--font-inter)" }}>
     <div className="mx-auto w-full px-4 tracking-tight" style={{ maxWidth: COLUMN + 32 }}>
       <h2 className="mb-10 text-lg text-neutral-800">Work Experience</h2>
 
-      <ul className="flex flex-col gap-5 text-base">
+      <ul className="flex flex-col gap-7 text-base">
         {JOBS.map((job) => (
           <JobRow key={`${job.role}-${job.company}`} job={job} />
         ))}
       </ul>
     </div>
-  </section>
+  </Reveal>
 );
 
 export default Experience;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import BrickBreaker from "@/components/BrickBreaker";
 import StuffShelf from "@/components/StuffShelf";
 import Experience from "@/components/Experience";
+import Projects from "@/components/Projects";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import React, { startTransition, useEffect, useRef, useState, ViewTransition } from "react";
@@ -179,7 +180,7 @@ const Hero = ({
 
   return (
     <div
-      className="relative z-10 flex flex-1 justify-center px-4 py-10 text-neutral-800 tracking-tight"
+      className="relative z-10 flex flex-1 justify-center px-4 pb-12 pt-30 md:py-10 text-neutral-800 tracking-tight"
       style={{ fontFamily: "var(--font-inter)" }}
     >
       {/* full-height column as wide as the longest paragraph (it wraps on narrow
@@ -483,9 +484,22 @@ const AboutPage = () => {
   const [showcase, setShowcase] = useState(false);
   const [playing, setPlaying] = useState(false);
 
+  // Hide the viewport scrollbar on this page only (the class on a child div
+  // doesn't reach the html/body scrollbar)
+  useEffect(() => {
+    document.documentElement.classList.add("no-scrollbar");
+    return () => document.documentElement.classList.remove("no-scrollbar");
+  }, []);
+
   return (
-    <div className="bg-[#FBFBFB]">
-      <div ref={heroSection} className="relative flex min-h-svh flex-col">
+    <div className="bg-[#FBFBFB] max-md:pr-3">
+      {/* Phones: the hero starts at the top at its natural height, so the sections
+          below follow straight after it. md and up: full screen, centred content.
+          (While the game is open the hero keeps full height for the play area.) */}
+      <div
+        ref={heroSection}
+        className={`relative flex flex-col overflow-hidden md:min-h-svh ${playing ? "min-h-svh" : ""}`}
+      >
         {/* first in the hero so the text paints on top of it */}
         <Showcase show={showcase} />
         <Hero
@@ -503,6 +517,8 @@ const AboutPage = () => {
       </div>
 
       <StuffShelf />
+
+      <Projects />
 
       <Experience />
     </div>

@@ -7,6 +7,7 @@ import { ArrowLeft01Icon, ArrowRight01Icon, ArrowUpRight01Icon } from "@hugeicon
 import HoldToAnimate from "@/components/HoldToAnimate";
 import MobileMenu from "@/components/MobileMenu";
 import PanCompare from "@/components/PanCompare";
+import Reveal from "@/components/Reveal";
 import ScratchCard, { THEMES, type Look } from "@/components/ScratchCard";
 
 // Leave `component` out for a slot that's still being made — it shows as "soon".
@@ -75,8 +76,6 @@ const COLUMN = 820;
 const GUTTER = `max(1rem, calc((100% - ${COLUMN}px) / 2))`;
 const GAP = 20;
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
-
 const ArrowButton = ({
   icon,
   label,
@@ -126,18 +125,13 @@ const StuffShelf = () => {
   };
 
   return (
-    <motion.section
+    <Reveal
       id="stuff"
       className="relative bg-[#FBFBFB] py-24"
       style={{ fontFamily: "var(--font-inter)" }}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.6, ease: EASE_OUT }}
     >
       <div className="mx-auto mb-6 flex w-full items-baseline justify-between px-4 tracking-tight" style={{ maxWidth: COLUMN + 32 }}>
         <h2 className="text-lg text-neutral-800">Stuff</h2>
-        <span className="text-sm text-neutral-400">little things to poke at</span>
       </div>
 
       <div
@@ -146,8 +140,9 @@ const StuffShelf = () => {
         className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ gap: GAP, paddingInline: GUTTER, scrollPaddingInline: GUTTER }}
       >
+        {/* slots still being made ("soon") stay off small screens — they'd just be a dead swipe */}
         {STUFF.map((item, i) => (
-          <div key={i} className="w-[min(78vw,360px)] shrink-0 snap-start">
+          <div key={i} className={`w-[min(78vw,360px)] shrink-0 snap-start ${item.component ? "" : "hidden sm:block"}`}>
             <div className="group relative flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
               {item.component ?? <span className="text-sm text-neutral-400">soon</span>}
             </div>
@@ -169,7 +164,7 @@ const StuffShelf = () => {
         <ArrowButton icon={ArrowLeft01Icon} label="Previous" disabled={!canPrev} onClick={() => scrollByCard(-1)} />
         <ArrowButton icon={ArrowRight01Icon} label="Next" disabled={!canNext} onClick={() => scrollByCard(1)} />
       </div>
-    </motion.section>
+    </Reveal>
   );
 };
 
