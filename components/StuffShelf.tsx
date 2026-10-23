@@ -10,6 +10,27 @@ import PanCompare from "@/components/PanCompare";
 import Reveal from "@/components/Reveal";
 import ScratchCard, { THEMES, type Look } from "@/components/ScratchCard";
 
+// The last card's mark: four petals turning forever. Purely decorative — it takes
+// no input, and the SMIL loop keeps running without any JS.
+const SpinMark = () => (
+  <svg viewBox="0 0 72 72" className="size-24" aria-hidden>
+    <g fill="#e063bb">
+      <animateTransform
+        attributeName="transform"
+        repeatCount="indefinite"
+        dur="6.67s"
+        type="rotate"
+        from="0 36 36"
+        to="360 36 36"
+      />
+      <path d="M36 36Q51.12 16.2 36 0Q20.88 16.2 36 36Z" />
+      <path d="M36 36Q55.8 51.12 72 36Q55.8 20.88 36 36Z" />
+      <path d="M36 36Q20.88 55.8 36 72Q51.12 55.8 36 36Z" />
+      <path d="M36 36Q16.2 20.88 0 36Q16.2 51.12 36 36Z" />
+    </g>
+  </svg>
+);
+
 // Leave `component` out for a slot that's still being made — it shows as "soon".
 // `href` turns the name into a link to the thing's own page.
 type Stuff = { name: string; component?: React.ReactNode; href?: string };
@@ -19,7 +40,7 @@ const STUFF: Stuff[] = [
   { name: "Mobile menu", component: <MobileMenu /> },
   { name: "Pan loader", component: <PanCompare /> },
   { name: "Scratch card", component: <ScratchStuff />, href: "/scratch-card" },
-  { name: "Untitled" },
+  { name: "Untitled", component: <SpinMark /> },
 ];
 
 // matches the pan loader card's control icons
@@ -142,7 +163,7 @@ const StuffShelf = () => {
       >
         {/* slots still being made ("soon") stay off small screens — they'd just be a dead swipe */}
         {STUFF.map((item, i) => (
-          <div key={i} className={`w-[min(78vw,360px)] shrink-0 snap-start ${item.component ? "" : "hidden sm:block"}`}>
+          <div key={i} className={`w-[min(68vw,312px)] shrink-0 snap-start ${item.component ? "" : "hidden sm:block"}`}>
             <div className="group relative flex aspect-[472/516] items-center justify-center overflow-hidden rounded-[28px] bg-[#F2F2F2]">
               {item.component ?? <span className="text-sm text-neutral-400">soon</span>}
             </div>

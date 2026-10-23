@@ -108,7 +108,7 @@ export default function FormPage() {
         <div className="mb-4 space-y-2">
           <button
             type="button"
-            className="flex h-8 w-full items-center justify-center gap-3 rounded-lg bg-[#2B2B2B] px-4 text-sm font-normal text-white transition hover:bg-[#3a3a3a]"
+            className="flex h-8 w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-[#2B2B2B] px-4 text-sm font-normal text-white transition hover:bg-[#3a3a3a]"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -120,7 +120,7 @@ export default function FormPage() {
           </button>
           <button
             type="button"
-            className="flex h-8 w-full items-center justify-center gap-3 rounded-lg bg-[#2B2B2B] px-4 text-sm font-normal text-white transition hover:bg-[#3a3a3a]"
+            className="flex h-8 w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-[#2B2B2B] px-4 text-sm font-normal text-white transition hover:bg-[#3a3a3a]"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.56 9.05 7.31c1.35.07 2.29.74 3.08.8.98-.2 1.92-.86 3.24-.8 1.58.13 2.77.75 3.55 1.9-3.27 1.96-2.5 6.27.49 7.52-.62 1.63-1.45 3.24-2.36 3.55zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -154,7 +154,7 @@ export default function FormPage() {
           </div>
           <button
             type="submit"
-            className="flex h-8 w-full items-center justify-center rounded-lg bg-[#AF3DDA] px-4 text-sm font-normal text-white transition hover:bg-[#c44de8]"
+            className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg bg-[#AF3DDA] px-4 text-sm font-normal text-white transition hover:bg-[#c44de8]"
           >
             Create account
           </button>
