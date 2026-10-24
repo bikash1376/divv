@@ -10,6 +10,7 @@ export const contentType = "image/png";
 
 const BG = "#F7F7F7";
 const INK = "#36393B";
+const MUTED = "#8C8F91";
 
 // Read once at module scope - these never depend on the request.
 const [mono, mark] = await Promise.all([
@@ -47,19 +48,37 @@ export default async function Image() {
 
         <img src={markSrc} width={48} height={48} style={{ position: "absolute", top: 88, left: 92 }} />
 
+        {/* one clear action: say hi */}
+        <div
+          style={{
+            position: "absolute",
+            right: 92,
+            top: 100,
+            display: "flex",
+            fontSize: 24,
+            lineHeight: 1,
+            letterSpacing: 1,
+            color: MUTED,
+          }}
+        >
+          open to work · bikash13763@gmail.com
+        </div>
+
         <div
           style={{
             position: "absolute",
             left: 92,
-            bottom: 120,
+            bottom: 88,
             display: "flex",
-            fontSize: 54,
-            lineHeight: 1,
-            letterSpacing: 2,
-            color: INK,
+            flexDirection: "column",
           }}
         >
-          bikash sahu
+          <div style={{ display: "flex", fontSize: 54, lineHeight: 1.15, letterSpacing: 2, color: INK }}>
+            bikash sahu
+          </div>
+          <div style={{ display: "flex", marginTop: 10, fontSize: 40, lineHeight: 1.15, letterSpacing: 2, color: MUTED }}>
+            design engineer
+          </div>
         </div>
       </div>
     ),

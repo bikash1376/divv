@@ -23,7 +23,7 @@ const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : "http://localhost:3000";
 
-const TITLE = "Bikash Sahu";
+const TITLE = "Bikash Sahu — Design Engineer building tools for the web";
 const DESCRIPTION =
   "Designer & developer crafting interfaces for small teams, and tinkering on side projects.";
 
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: TITLE },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Bikash Sahu" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
