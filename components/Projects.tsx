@@ -84,7 +84,7 @@ const COLUMN = 820;
 
 // Logo chip in the project's title line: icon-only in the resting row, then the
 // source name slides out when the row is hovered. The SVGs carry their own colour.
-const ProjectIconLink = ({
+export const ProjectIconLink = ({
   href,
   logo,
   label,
