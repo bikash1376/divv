@@ -206,7 +206,7 @@ const Work = () => {
   return (
     <div id="work" className="flex flex-col gap-5 scroll-mt-6">
       <Piece name="iOTA Design">
-        <div className="h-[560px] bg-[#FBFBFB] p-2">
+        <div className="h-[380px] bg-[#FBFBFB] p-2 md:h-[560px]">
           <iframe
             src={`${IOTA_DESIGN}/embed`}
             title="iOTA component canvas"
