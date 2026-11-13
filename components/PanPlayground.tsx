@@ -1,11 +1,12 @@
 "use client"
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 import { PanFrame, panEndAt, type Kind } from "@/components/PanLoader";
 import { SCENES, SceneArt, type Look } from "@/components/tossScenes";
+import { Row, Segmented, Slider } from "@/components/ui/playground-controls";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 const MORPH = { type: "spring", stiffness: 240, damping: 30 } as const;
@@ -46,88 +47,6 @@ type Settings = typeof DEFAULTS;
 /* ---------------------------------------------------------------- */
 /* Controls                                                          */
 /* ---------------------------------------------------------------- */
-
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  label,
-}: {
-  options: { id: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  const pill = useId();
-  return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-full bg-[#F2F2F2] p-1">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={o.id === value}
-          onClick={() => onChange(o.id)}
-          className={`relative min-w-0 flex-1 cursor-pointer whitespace-nowrap rounded-full px-2 py-1.5 text-[13px] transition-colors ${
-            o.id === value ? "text-neutral-900" : "text-neutral-400 hover:text-neutral-700"
-          }`}
-        >
-          {o.id === value && (
-            <motion.span
-              layoutId={pill}
-              className="absolute inset-0 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-              transition={{ type: "spring", stiffness: 500, damping: 38 }}
-            />
-          )}
-          <span className="relative">{o.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  format,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  format: (v: number) => string;
-  onChange: (v: number) => void;
-}) {
-  const pct = ((value - min) / (max - min)) * 100;
-  return (
-    <label className="relative flex h-11 cursor-ew-resize items-center justify-between overflow-hidden rounded-2xl bg-[#F2F2F2] px-4 text-sm">
-      <span className="absolute inset-y-0 left-0 bg-[#E6E6E6]" style={{ width: `${pct}%` }} />
-      <span className="relative text-neutral-500">{label}</span>
-      <span className="relative font-medium tabular-nums text-neutral-800">{format(value)}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="absolute inset-0 cursor-ew-resize opacity-0"
-      />
-    </label>
-  );
-}
-
-const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="space-y-2">
-    <p className="text-sm text-neutral-500">{label}</p>
-    {children}
-  </div>
-);
 
 const IconButton = ({
   label,
