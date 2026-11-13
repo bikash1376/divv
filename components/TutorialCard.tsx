@@ -51,6 +51,11 @@ export type CardStyle = {
   /** Space between the subtext and the footer (counter + buttons), in px. */
   footerGap: number;
   headingPosition: "top" | "above-text";
+  /** CSS font-family; empty inherits the app's sans font. */
+  fontFamily: string;
+  headingSize: number;
+  /** Body, counter and button text size; buttons inherit it. */
+  textSize: number;
   headingWeight: number;
   textWeight: number;
   buttonWeight: number;
@@ -89,6 +94,9 @@ export const DEFAULT_CARD_STYLE: CardStyle = {
   showClose: true,
   footerGap: 28,
   headingPosition: "top",
+  fontFamily: "",
+  headingSize: 18,
+  textSize: 16,
   headingWeight: 700,
   textWeight: 400,
   buttonWeight: 500,
@@ -355,7 +363,11 @@ export default function TutorialCard({
   );
 
   const heading = (
-    <h2 id={titleId} className="text-[18px] leading-tight" style={{ color: s.headingColor, fontWeight: s.headingWeight }}>
+    <h2
+      id={titleId}
+      className="leading-tight"
+      style={{ color: s.headingColor, fontWeight: s.headingWeight, fontSize: s.headingSize }}
+    >
       <EditableText value={c.title} editable={editable} onCommit={edit("title")} />
     </h2>
   );
@@ -389,6 +401,8 @@ export default function TutorialCard({
         style={{
           background: cardBackground,
           borderRadius: s.cardRadius,
+          fontFamily: s.fontFamily || undefined,
+          fontSize: s.textSize,
           paddingTop: mediaFirst ? s.padding : insetY,
           paddingBottom: insetY,
         }}
@@ -462,7 +476,7 @@ export default function TutorialCard({
             }}
           >
             {headingAboveText && <div className="pb-2.5">{heading}</div>}
-            <p id={descId} className="text-[16px] leading-[1.75]" style={{ color: s.textColor, fontWeight: s.textWeight }}>
+            <p id={descId} className="leading-[1.75]" style={{ color: s.textColor, fontWeight: s.textWeight }}>
               <EditableText value={c.description} editable={editable} onCommit={edit("description")} />
             </p>
           </motion.div>
@@ -473,7 +487,7 @@ export default function TutorialCard({
           style={{ paddingLeft: inset, paddingRight: inset, paddingTop: s.footerGap }}
         >
           {s.showCounter && (
-            <span aria-live="polite" className="text-[16px] leading-[1.75]" style={{ color: s.textColor, fontWeight: s.textWeight }}>
+            <span aria-live="polite" className="leading-[1.75]" style={{ color: s.textColor, fontWeight: s.textWeight }}>
               <EditableText value={c.counter} editable={editable} onCommit={edit("counter")} />
             </span>
           )}

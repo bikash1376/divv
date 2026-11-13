@@ -236,7 +236,11 @@ export default function TutsPlayground() {
             </div>
           </Section>
 
-          <Section title="Font weight">
+          <Section title="Typography">
+            <div className="grid grid-cols-2 gap-1.5">
+              <Slider label="Title size" value={card.headingSize} min={12} max={28} step={1} format={px} onChange={(v) => setC("headingSize", v)} />
+              <Slider label="Text size" value={card.textSize} min={11} max={20} step={1} format={px} onChange={(v) => setC("textSize", v)} />
+            </div>
             <div className="grid grid-cols-3 gap-1.5">
               <Slider label="Title" value={card.headingWeight} min={100} max={900} step={100} format={num} onChange={(v) => setC("headingWeight", v)} />
               <Slider label="Text" value={card.textWeight} min={100} max={900} step={100} format={num} onChange={(v) => setC("textWeight", v)} />
