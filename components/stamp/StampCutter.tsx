@@ -59,6 +59,23 @@ const BODY_MASK = `url("data:image/svg+xml,${encodeURIComponent(
 
 /* ---------- sound: short filtered noise bursts, no audio files ---------- */
 
+/* ---------- one-time hints ---------- */
+
+const seenThisVisit = new Set<string>()
+function seen(key: string) {
+  try {
+    if (localStorage.getItem(`stamp:${key}`) === '1') return true
+  } catch {}
+  return seenThisVisit.has(key)
+}
+function markSeen(key: string) {
+  seenThisVisit.add(key)
+  try {
+    localStorage.setItem(`stamp:${key}`, '1')
+  } catch {}
+}
+const CHEERS = ['u got this!', 'congrats!', 'les go!']
+
 let audio: AudioContext | null = null
 function burst(dur: number, freq: number, gain: number, type: BiquadFilterType = 'bandpass', q = 1.4) {
   try {
@@ -129,7 +146,7 @@ function CutterBody({
   empty: boolean
   onKnobDown: (e: ReactPointerEvent) => void
   onKnobUp: () => void
-  onKnobClick: () => void
+  onKnobClick: (detail: number, time: number) => void
   onUpload: () => void
 }) {
   const id = useId().replace(/:/g, '')
@@ -300,7 +317,7 @@ function CutterBody({
           onPointerDown={onKnobDown}
           onPointerUp={onKnobUp}
           onPointerLeave={onKnobUp}
-          onClick={onKnobClick}
+          onClick={(e) => onKnobClick(e.detail, e.timeStamp)}
           className='absolute inset-x-0 top-0 cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#3B3A37]/40'
           style={{
             height: 38,
@@ -369,6 +386,26 @@ function renderStamp(src: CanvasImageSource, sx: number, sy: number, ss: number,
   return new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob'))), 'image/png'))
 }
 
+/**
+ * The copy that goes on the clipboard. Apps that drop transparency (WhatsApp, on
+ * Windows via the clipboard bitmap) show whatever colour hides in transparent
+ * pixels, and a canvas stores those as black. So the grooves get white at
+ * alpha 1/255: invisible where transparency works, white where it doesn't.
+ * Downloads keep the plain, fully transparent PNG.
+ */
+async function forClipboard(blob: Blob) {
+  const img = await createImageBitmap(blob)
+  const c = document.createElement('canvas')
+  c.width = img.width
+  c.height = img.height
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.004)'
+  ctx.fillRect(0, 0, c.width, c.height)
+  ctx.drawImage(img, 0, 0)
+  img.close()
+  return new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob'))), 'image/png'))
+}
+
 const randomTilt = () => Math.round((Math.random() * 2 - 1) * 6)
 
 const secondaryBtn: CSSProperties = {
@@ -379,6 +416,7 @@ const secondaryBtn: CSSProperties = {
 const btnClass =
   'h-10 cursor-pointer rounded-full px-4 text-[14px] font-medium whitespace-nowrap outline-none transition-transform active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#3B3A37]/40'
 
+type Hole = { id: number; ix: number; iy: number; is: number }
 type Flying = Stamp & { from: { x: number; y: number; size: number } }
 type Gesture =
   | { kind: 'pan'; id: number; sx: number; sy: number; vx: number; vy: number }
@@ -407,6 +445,10 @@ export default function StampCutter() {
   const [flying, setFlying] = useState<Flying | null>(null)
   const [say, setSay] = useState<{ id: number; text: string } | null>(null)
   const [selected, setSelected] = useState<Stamp | null>(null)
+  const [holes, setHoles] = useState<Hole[]>([])
+  const [moving, setMoving] = useState(false)
+  const originalRef = useRef<HTMLCanvasElement | null>(null)
+  const wheelTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const narrow = size.w > 0 && size.w < 640
   // Bigger cutter: a bit on desktop, a lot on phones; never taller than the screen allows
@@ -499,6 +541,12 @@ export default function StampCutter() {
       paper.width = Math.round(img.naturalWidth * r)
       paper.height = Math.round(img.naturalHeight * r)
       paper.getContext('2d')?.drawImage(img, 0, 0, paper.width, paper.height)
+      const original = document.createElement('canvas')
+      original.width = paper.width
+      original.height = paper.height
+      original.getContext('2d')?.drawImage(paper, 0, 0)
+      originalRef.current = original
+      setHoles([])
       URL.revokeObjectURL(url)
       const { w, h } = sizeRef.current
       const fit = Math.min((w - 48) / paper.width, (h - 200) / paper.height)
@@ -517,6 +565,9 @@ export default function StampCutter() {
       e.preventDefault()
       const rect = el.getBoundingClientRect()
       zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - rect.left, e.clientY - rect.top)
+      setMoving(true)
+      clearTimeout(wheelTimer.current)
+      wheelTimer.current = setTimeout(() => setMoving(false), 220)
     }
     const onPaste = (e: ClipboardEvent) => {
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
@@ -541,6 +592,28 @@ export default function StampCutter() {
 
   const openPicker = () => fileRef.current?.click()
 
+  const lastLever = useRef(0)
+  const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const leverClick = (detail: number, now: number) => {
+    if (!viewRef.current) return openPicker()
+    // Keyboard activation (Enter/Space) has no click count: cut straight away
+    if (detail === 0) return cut()
+    if (now - lastLever.current < 320) {
+      lastLever.current = 0
+      clearTimeout(hintTimer.current)
+      cut()
+      return
+    }
+    lastLever.current = now
+    clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => {
+      if (seen('hint')) return
+      markSeen('hint')
+      const touch = window.matchMedia('(pointer: coarse)').matches
+      flash(touch ? 'double tap to cut' : 'double click to cut')
+    }, 320)
+  }
+
   /** Copy a stamp PNG. With `onDone` the caller shows the result; otherwise the cutter says it. */
   const copy = (blob: Promise<Blob>, onDone?: (ok: boolean) => void) => {
     const done = (ok: boolean) =>
@@ -548,7 +621,7 @@ export default function StampCutter() {
     // Optimistic: the write can sit pending (e.g. a permission prompt), so
     // confirm right away and only correct it if the write actually fails.
     try {
-      const write = navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      const write = navigator.clipboard.write([new ClipboardItem({ 'image/png': blob.then(forClipboard) })])
       done(true)
       write.catch(() => done(false))
     } catch {
@@ -605,8 +678,16 @@ export default function StampCutter() {
     p.globalCompositeOperation = 'destination-out'
     p.fill(new Path2D(stampPath(is, ix, iy)))
     p.restore()
+    setHoles((list) => [...list, { id: nextId.current++, ix, iy, is }])
 
-    copy(blob)
+    if (seen('cheer')) copy(blob)
+    else {
+      markSeen('cheer')
+      copy(blob, (ok) => {
+        flash(CHEERS[Math.floor(Math.random() * CHEERS.length)])
+        setTimeout(() => flash(ok ? 'copied to clipboard' : "couldn't copy, it's in the tray"), 1300)
+      })
+    }
     blob.then((b) => {
       setFlying({
         id: nextId.current++,
@@ -639,7 +720,7 @@ export default function StampCutter() {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
-    if (!d.moved) cut()
+    // A plain click on the body does nothing: cutting is a double click on the lever
   }
   const onCutterKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
@@ -695,21 +776,53 @@ export default function StampCutter() {
     if (g.kind === 'pan' && g.id === e.pointerId) {
       const p = pointers.current.get(e.pointerId)!
       setView({ ...v, x: g.vx + p.x - g.sx, y: g.vy + p.y - g.sy })
+      setMoving(true)
     } else if (g.kind === 'pinch') {
       const [a, b] = [...pointers.current.values()]
       const s = clamp((g.s0 * Math.hypot(a.x - b.x, a.y - b.y)) / g.d0, v.fit * 0.3, Math.max(v.fit * 12, 4))
       const mx = (a.x + b.x) / 2
       const my = (a.y + b.y) / 2
       setView({ ...v, s, x: mx - g.ax * s, y: my - g.ay * s })
+      setMoving(true)
     }
   }
   const onStageUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!pointers.current.delete(e.pointerId)) return
     startGesture()
+    if (!pointers.current.size) setMoving(false)
+  }
+
+  /** Put a punched hole back: copy its square from the untouched photo, then re-punch any other holes. */
+  const retake = (hole: Hole) => {
+    const paper = paperRef.current
+    const original = originalRef.current
+    if (!paper || !original) return
+    const ctx = paper.getContext('2d')!
+    const x0 = Math.max(0, Math.floor(hole.ix) - 2)
+    const y0 = Math.max(0, Math.floor(hole.iy) - 2)
+    const x1 = Math.min(paper.width, Math.ceil(hole.ix + hole.is) + 2)
+    const y1 = Math.min(paper.height, Math.ceil(hole.iy + hole.is) + 2)
+    if (x1 > x0 && y1 > y0) {
+      ctx.clearRect(x0, y0, x1 - x0, y1 - y0)
+      ctx.drawImage(original, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0)
+    }
+    const rest = holes.filter((h) => h.id !== hole.id)
+    ctx.save()
+    ctx.globalCompositeOperation = 'destination-out'
+    for (const h of rest) ctx.fill(new Path2D(stampPath(h.is, h.ix, h.iy)))
+    ctx.restore()
+    setHoles(rest)
+  }
+
+  const [introAsk, setIntroAsk] = useState(false)
+  const onIntroClick = () => {
+    clickSound()
+    if (introAsk) openPicker()
+    else setIntroAsk(true)
   }
 
   const bubble = empty
-    ? { key: 'intro', text: 'hey, i can create stamps', delay: 0.35 }
+    ? { key: 'intro', text: introAsk ? 'upload an image' : 'hey, i can create stamps', delay: 0.35 }
     : say && { key: say.id, text: say.text, delay: 0 }
 
   const trayRef = useRef<HTMLDivElement>(null)
@@ -768,6 +881,47 @@ export default function StampCutter() {
             }}
           />
         </div>
+
+        {/* "retake" in each cutout: hidden while the photo moves or the cutter sits over it */}
+        <AnimatePresence>
+          {view &&
+            !moving &&
+            holes.map((h) => {
+              const size = h.is * view.s
+              const left = view.x + h.ix * view.s
+              const top = view.y + h.iy * view.s
+              const underCutter =
+                left < cutter.x + cw && left + size > cutter.x && top < cutter.y + ch && top + size > cutter.y
+              if (underCutter) return null
+              return (
+                <motion.button
+                  key={h.id}
+                  type='button'
+                  aria-label='Retake: put this cutout back'
+                  onPointerDown={(e) => {
+                    e.stopPropagation()
+                    clickSound()
+                  }}
+                  onClick={() => retake(h)}
+                  className='absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-[5px] text-[20px] leading-none outline-none focus-visible:ring-2 focus-visible:ring-[#3B3A37]/40'
+                  style={{
+                    left: left + size / 2,
+                    top: top + size / 2,
+                    background: INK,
+                    color: '#F4F4F3',
+                    fontFamily: 'var(--font-caveat), cursive',
+                    boxShadow: '-2px 4px 10px #00000026',
+                  }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.12 } }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+                >
+                  retake
+                </motion.button>
+              )
+            })}
+        </AnimatePresence>
 
         {/* Cut stamps: ends fade out only when there's more to scroll that way */}
         <div
@@ -871,7 +1025,7 @@ export default function StampCutter() {
                   clickSound()
                 }}
                 onKnobUp={() => setPressed(false)}
-                onKnobClick={cut}
+                onKnobClick={leverClick}
                 onUpload={openPicker}
               />
             </div>
@@ -912,12 +1066,29 @@ export default function StampCutter() {
                         fontFamily: 'var(--font-caveat), cursive',
                         boxShadow: '-2px 4px 10px #00000026',
                         transformOrigin: 'bottom left',
+                        pointerEvents: bubble.key === 'intro' ? 'auto' : 'none',
+                        cursor: bubble.key === 'intro' ? 'pointer' : undefined,
                       }}
                       initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 22, delay: bubble.delay + 0.16 }}
+                      {...(bubble.key === 'intro' && {
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': introAsk ? 'Upload an image' : 'Hey, I can create stamps. Click for more.',
+                        onPointerDown: (e: ReactPointerEvent) => e.stopPropagation(),
+                        onClick: onIntroClick,
+                        onKeyDown: (e: KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            onIntroClick()
+                          }
+                        },
+                      })}
                     >
-                      {bubble.text}
+                      <TextMorph duration={350} ease='cubic-bezier(0.19, 1, 0.22, 1)' className='whitespace-nowrap'>
+                        {bubble.text}
+                      </TextMorph>
                     </motion.p>
                   </div>
                 </motion.div>
