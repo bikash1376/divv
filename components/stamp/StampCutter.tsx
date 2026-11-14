@@ -19,7 +19,7 @@ const R = 40
 const HOLE = 112
 const HX = (W - HOLE) / 2
 const HY = 38
-const TEETH = 11
+const TEETH = 10
 
 const TILE = 64
 const GUTTER = 16
@@ -27,34 +27,27 @@ const GUTTER = 16
 const PAGE_BG = '#E8E7E4'
 const INK = '#3B3A37'
 
-/** Square with semicircular bites along every edge, like a perforated stamp. */
+/**
+ * Square with semicircular bites along every edge and a quarter bite on each
+ * corner, like a perforated stamp. Bites sit every `size / TEETH`, corners included,
+ * so all four edges meet cleanly. Traced clockwise; every arc curves inward.
+ */
 function stampPath(size: number, ox = 0, oy = 0) {
   const s = size / TEETH
-  const r = s * 0.3
+  const r = s * 0.32
   const f = (n: number) => +n.toFixed(2)
   const arc = (x: number, y: number) => `A${f(r)} ${f(r)} 0 0 0 ${f(x)} ${f(y)}`
   const x1 = ox + size
   const y1 = oy + size
-  let d = `M${f(ox)} ${f(oy)}`
-  for (let i = 0; i < TEETH; i++) {
-    const c = ox + (i + 0.5) * s
-    d += `L${f(c - r)} ${f(oy)}${arc(c + r, oy)}`
-  }
-  d += `L${f(x1)} ${f(oy)}`
-  for (let i = 0; i < TEETH; i++) {
-    const c = oy + (i + 0.5) * s
-    d += `L${f(x1)} ${f(c - r)}${arc(x1, c + r)}`
-  }
-  d += `L${f(x1)} ${f(y1)}`
-  for (let i = 0; i < TEETH; i++) {
-    const c = x1 - (i + 0.5) * s
-    d += `L${f(c + r)} ${f(y1)}${arc(c - r, y1)}`
-  }
-  d += `L${f(ox)} ${f(y1)}`
-  for (let i = 0; i < TEETH; i++) {
-    const c = y1 - (i + 0.5) * s
-    d += `L${f(ox)} ${f(c + r)}${arc(ox, c - r)}`
-  }
+  let d = `M${f(ox + r)} ${f(oy)}`
+  for (let i = 1; i < TEETH; i++) d += `L${f(ox + i * s - r)} ${f(oy)}${arc(ox + i * s + r, oy)}`
+  d += `L${f(x1 - r)} ${f(oy)}${arc(x1, oy + r)}`
+  for (let i = 1; i < TEETH; i++) d += `L${f(x1)} ${f(oy + i * s - r)}${arc(x1, oy + i * s + r)}`
+  d += `L${f(x1)} ${f(y1 - r)}${arc(x1 - r, y1)}`
+  for (let i = 1; i < TEETH; i++) d += `L${f(x1 - i * s + r)} ${f(y1)}${arc(x1 - i * s - r, y1)}`
+  d += `L${f(ox + r)} ${f(y1)}${arc(ox, y1 - r)}`
+  for (let i = 1; i < TEETH; i++) d += `L${f(ox)} ${f(y1 - i * s + r)}${arc(ox, y1 - i * s - r)}`
+  d += `L${f(ox)} ${f(oy + r)}${arc(ox + r, oy)}`
   return d + 'Z'
 }
 
@@ -104,7 +97,7 @@ const punchSound = () => {
 const raisedPlate: CSSProperties = {
   background: 'linear-gradient(210deg, #FBFBFA 0%, #F0EFEC 55%, #E2E1DD 100%)',
   boxShadow:
-    '-5px 7px 10px #00000024, -1px 1px 2px #00000030, 1px -1px 0 #ffffff inset, -1px 1px 1px #00000012 inset',
+    '-5px 7px 10px #00000024, -1px 1px 2px #00000030, -1px 1px 0 #ffffff inset, 1px -1px 1px #00000012 inset',
 }
 
 const recess: CSSProperties = {
@@ -164,17 +157,17 @@ function CutterBody({
         {/* sides: darkening toward the underside */}
         <div
           className='absolute inset-0'
-          style={{ borderRadius: R, background: 'linear-gradient(4deg, #00000088 0%, #F4F4F3 72%, #F4F4F3 100%)' }}
+          style={{ borderRadius: R, background: 'linear-gradient(4deg, #0000004d 0%, #E4E3DF 55%, #F1F0EE 100%)' }}
         />
         <div className='absolute inset-0 p-[3px]' style={{ borderRadius: R }}>
           {/* rounded rim catching the light */}
           <div
             className='absolute inset-0 blur-[1px]'
-            style={{ borderRadius: R, background: 'linear-gradient(1deg, #F4F4F3 0%, #F4F4F3 25%, #8A8885 100%)' }}
+            style={{ borderRadius: R, background: 'linear-gradient(1deg, #F4F4F3 0%, #F4F4F3 35%, #C9C7C3 100%)' }}
           />
           <div
             className='absolute inset-0 blur-[1px]'
-            style={{ borderRadius: R, background: 'linear-gradient(15deg, #F4F4F300 0%, #F4F4F300 25%, #8A8885 100%)' }}
+            style={{ borderRadius: R, background: 'linear-gradient(15deg, #F4F4F300 0%, #F4F4F300 35%, #D2D0CC 100%)' }}
           />
 
           {/* top face */}
@@ -183,7 +176,7 @@ function CutterBody({
             style={{
               borderRadius: R - 3,
               background: 'linear-gradient(200deg, #F8F8F6 0%, #EEEDEA 60%, #E3E2DE 100%)',
-              boxShadow: '1px -1px 1px #ffffffe0 inset, -1px 1px 2px #00000020 inset',
+              boxShadow: '-1px 1px 1px #ffffffe0 inset, 1px -1px 2px #00000014 inset',
             }}
           >
             {/* window plate */}
@@ -240,7 +233,7 @@ function CutterBody({
         </div>
       </div>
 
-      {/* Window: inner wall shadow + metal blade, drawn over the hole */}
+      {/* Window: inner wall shadow, lit wall and a single crisp edge, drawn over the hole */}
       <svg
         className='pointer-events-none absolute overflow-visible'
         style={{ left: HX, top: HY }}
@@ -252,12 +245,7 @@ function CutterBody({
           <clipPath id={`${id}-hole`}>
             <path d={HOLE_D} />
           </clipPath>
-          <linearGradient id={`${id}-blade`} x1='0' y1='1' x2='1' y2='0'>
-            <stop offset='0' stopColor='#8E8D89' />
-            <stop offset='0.4' stopColor='#F6F6F4' />
-            <stop offset='0.65' stopColor='#B4B3AF' />
-            <stop offset='1' stopColor='#FBFBFA' />
-          </linearGradient>
+
           <filter id={`${id}-soft`} x='-20%' y='-20%' width='140%' height='140%'>
             <feGaussianBlur stdDeviation='2.2' />
           </filter>
@@ -273,8 +261,12 @@ function CutterBody({
             transform='translate(-3 4)'
           />
         </g>
-        <path d={HOLE_D} fill='none' stroke={`url(#${id}-blade)`} strokeWidth={2.4} />
-        <path d={HOLE_D} fill='none' stroke='#00000038' strokeWidth={0.6} transform='translate(-0.8 0.8)' />
+        {/* lit lower-left wall, inside the hole only */}
+        <g clipPath={`url(#${id}-hole)`}>
+          <path d={HOLE_D} fill='none' stroke='#ffffff' strokeOpacity={0.55} strokeWidth={2} transform='translate(1 -1)' />
+        </g>
+        {/* one crisp edge, no doubled outline */}
+        <path d={HOLE_D} fill='none' stroke='#00000033' strokeWidth={1} />
       </svg>
 
       {/* Empty state: upload button sitting in the middle of the window */}
@@ -416,8 +408,9 @@ export default function StampCutter() {
   const [say, setSay] = useState<{ id: number; text: string } | null>(null)
   const [selected, setSelected] = useState<Stamp | null>(null)
 
-  const k = size.w && size.w < 640 ? 0.74 : 1
-  const narrow = k < 1
+  const narrow = size.w > 0 && size.w < 640
+  // Bigger cutter: a bit on desktop, a lot on phones; never taller than the screen allows
+  const k = size.h ? Math.min(narrow ? 1.05 : 1.15, (size.h - 150) / H) : 1
   const cw = W * k
   const ch = H * k
   const empty = !view
@@ -756,8 +749,8 @@ export default function StampCutter() {
         {/* Cut stamps */}
         <div
           data-tray
-          className='no-scrollbar absolute flex gap-3 overflow-x-auto overflow-y-visible py-3'
-          style={{ left: GUTTER, right: GUTTER, bottom: GUTTER - 12 }}
+          className='no-scrollbar absolute flex gap-3 overflow-x-auto px-4 pb-5 pt-4'
+          style={{ left: GUTTER - 16, right: 0, bottom: GUTTER - 20 }}
         >
           <button
             type='button'
