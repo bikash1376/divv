@@ -410,7 +410,7 @@ export default function StampCutter() {
 
   const narrow = size.w > 0 && size.w < 640
   // Bigger cutter: a bit on desktop, a lot on phones; never taller than the screen allows
-  const k = size.h ? Math.min(narrow ? 1.05 : 1.15, (size.h - 150) / H) : 1
+  const k = size.h ? Math.min(narrow ? 0.92 : 1.15, (size.h - 150) / H) : 1
   const cw = W * k
   const ch = H * k
   const empty = !view
@@ -712,6 +712,29 @@ export default function StampCutter() {
     ? { key: 'intro', text: 'hey, i can create stamps', delay: 0.35 }
     : say && { key: say.id, text: say.text, delay: 0 }
 
+  const trayRef = useRef<HTMLDivElement>(null)
+  const trayRowRef = useRef<HTMLDivElement>(null)
+  const [trayFade, setTrayFade] = useState({ l: false, r: false })
+  const measureTray = () => {
+    const el = trayRef.current
+    if (!el) return
+    const l = el.scrollLeft > 1
+    const r = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setTrayFade((f) => (f.l === l && f.r === r ? f : { l, r }))
+  }
+  const FADE = 48
+  const trayMaskImage = `linear-gradient(to right, transparent 0, #000 ${trayFade.l ? FADE : 0}px, #000 calc(100% - ${trayFade.r ? FADE : 0}px), transparent 100%)`
+  const trayMask: CSSProperties = { maskImage: trayMaskImage, WebkitMaskImage: trayMaskImage }
+
+  // Re-measure the tray fades whenever the tray or its row of stamps resizes
+  useEffect(() => {
+    const ro = new ResizeObserver(() => measureTray())
+    if (trayRef.current) ro.observe(trayRef.current)
+    if (trayRowRef.current) ro.observe(trayRowRef.current)
+    return () => ro.disconnect()
+  }, [])
+
+
   // New stamps land in the first slot after the + tile
   const trayTarget = { x: GUTTER + TILE + 12, y: size.h - GUTTER - TILE }
 
@@ -746,12 +769,15 @@ export default function StampCutter() {
           />
         </div>
 
-        {/* Cut stamps */}
+        {/* Cut stamps: ends fade out only when there's more to scroll that way */}
         <div
+          ref={trayRef}
           data-tray
-          className='no-scrollbar absolute flex gap-3 overflow-x-auto px-4 pb-5 pt-4'
-          style={{ left: GUTTER - 16, right: 0, bottom: GUTTER - 20 }}
+          onScroll={measureTray}
+          className='no-scrollbar absolute overflow-x-auto px-4 pb-5 pt-4'
+          style={{ left: GUTTER - 16, right: 0, bottom: GUTTER - 20, ...trayMask }}
         >
+          <div ref={trayRowRef} className='flex w-max gap-3'>
           <button
             type='button'
             aria-label='Upload a photo'
@@ -789,6 +815,7 @@ export default function StampCutter() {
               )}
             </motion.button>
           ))}
+          </div>
         </div>
 
         {/* A fresh stamp sliding from under the cutter to the tray */}
@@ -876,10 +903,10 @@ export default function StampCutter() {
                       />
                     ))}
                     <motion.p
-                      className='absolute whitespace-nowrap rounded-full px-[18px] py-[7px] text-[22px] leading-none'
+                      className={`absolute whitespace-nowrap rounded-full leading-none ${narrow ? 'px-3.5 py-[6px] text-[18px]' : 'px-[18px] py-[7px] text-[22px]'}`}
                       style={{
-                        left: narrow ? -60 : 20,
-                        bottom: 28,
+                        left: narrow ? -50 : 20,
+                        bottom: narrow ? 24 : 28,
                         background: INK,
                         color: '#F4F4F3',
                         fontFamily: 'var(--font-caveat), cursive',
