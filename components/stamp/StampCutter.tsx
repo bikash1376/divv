@@ -171,21 +171,18 @@ function CutterBody({
         className='absolute inset-0'
         style={{ maskImage: BODY_MASK, WebkitMaskImage: BODY_MASK, maskSize: '100% 100%', WebkitMaskSize: '100% 100%' }}
       >
-        {/* sides: darkening toward the underside */}
+        {/* sides: darkening toward every edge, so all four read as thick plastic */}
         <div
           className='absolute inset-0'
-          style={{ borderRadius: R, background: 'linear-gradient(4deg, #0000004d 0%, #E4E3DF 55%, #F1F0EE 100%)' }}
+          style={{
+            borderRadius: R,
+            background:
+              'linear-gradient(180deg, #0000004d 0%, #0000 45%, #0000 55%, #0000004d 100%), linear-gradient(90deg, #0000004d 0%, #0000 45%, #0000 55%, #0000004d 100%), #E4E3DF',
+          }}
         />
-        <div className='absolute inset-0 p-[3px]' style={{ borderRadius: R }}>
-          {/* rounded rim catching the light */}
-          <div
-            className='absolute inset-0 blur-[1px]'
-            style={{ borderRadius: R, background: 'linear-gradient(1deg, #F4F4F3 0%, #F4F4F3 35%, #C9C7C3 100%)' }}
-          />
-          <div
-            className='absolute inset-0 blur-[1px]'
-            style={{ borderRadius: R, background: 'linear-gradient(15deg, #F4F4F300 0%, #F4F4F300 35%, #D2D0CC 100%)' }}
-          />
+        <div className='absolute inset-0 overflow-hidden p-[3px]' style={{ borderRadius: R }}>
+          {/* rounded rim catching the light: the same bright lip on every side */}
+          <div className='absolute inset-0 blur-[1px]' style={{ borderRadius: R, background: '#F4F4F3' }} />
 
           {/* top face */}
           <div
@@ -193,7 +190,7 @@ function CutterBody({
             style={{
               borderRadius: R - 3,
               background: 'linear-gradient(200deg, #F8F8F6 0%, #EEEDEA 60%, #E3E2DE 100%)',
-              boxShadow: '-1px 1px 1px #ffffffe0 inset, 1px -1px 2px #00000014 inset',
+              boxShadow: '0 0 2px 0.5px #00000017 inset',
             }}
           >
             {/* window plate */}
@@ -309,16 +306,19 @@ function CutterBody({
         </button>
       )}
 
-      {/* Lever: the knob slides down the well when you cut */}
-      <div className='absolute' style={{ left: (W - 44) / 2 + 6, top: 3 + 190 + 6, width: 32, height: 70 }}>
+      {/* Lever: the whole well is the hit area (double click anywhere in it cuts); the knob slides down it */}
+      <div
+        className='absolute cursor-pointer'
+        style={{ left: (W - 44) / 2, top: 3 + 190, width: 44, height: 82, borderRadius: 16 }}
+        onPointerDown={onKnobDown}
+        onPointerUp={onKnobUp}
+        onPointerLeave={onKnobUp}
+        onClick={(e) => onKnobClick(e.detail, e.timeStamp)}
+      >
         <button
           type='button'
           aria-label={empty ? 'Upload a photo' : 'Cut stamp'}
-          onPointerDown={onKnobDown}
-          onPointerUp={onKnobUp}
-          onPointerLeave={onKnobUp}
-          onClick={(e) => onKnobClick(e.detail, e.timeStamp)}
-          className='absolute inset-x-0 top-0 cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#3B3A37]/40'
+          className='absolute left-[6px] right-[6px] top-[6px] cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#3B3A37]/40'
           style={{
             height: 38,
             borderRadius: 16 - 6,
@@ -363,15 +363,16 @@ function CutterBody({
 type View = { x: number; y: number; s: number; fit: number }
 type Stamp = { id: number; url: string; blob: Blob; rot: number; sample?: boolean }
 
-// Pre-cut stamps for "Show me some stuff": crops of images in /public,
-// as fractions of the image (centre x/y, side length relative to width)
-const SAMPLES = [
-  { src: '/image3.jpg', cx: 0.631, cy: 0.654, size: 0.12 },
-  { src: '/image1.png', cx: 0.065, cy: 0.62, size: 0.1 },
-  { src: '/image3.jpg', cx: 0.174, cy: 0.682, size: 0.1 },
-  { src: '/image2.webp', cx: 0.725, cy: 0.235, size: 0.17 },
+// Sample stamps that fill the tray on first visit, in order. Either a ready-made
+// stamp PNG in /public/cutouts, or a crop cut at load time from an image in
+// /public (centre x/y and side length as fractions of the image width/height).
+type Sample = { file: string } | { src: string; cx: number; cy: number; size: number }
+const SAMPLES: Sample[] = [
+  { file: '/cutouts/stamp-2.png' },
   { src: '/image3.jpg', cx: 0.395, cy: 0.695, size: 0.1 },
-  { src: '/image3.jpg', cx: 0.816, cy: 0.705, size: 0.12 },
+  { file: '/cutouts/stamp-1.png' },
+  { file: '/cutouts/stamp-3.png' },
+  { file: '/cutouts/stamp-4.png' },
 ]
 
 /** Draw the square (sx, sy, side ss) of `src` into a perforated stamp PNG. */
@@ -421,6 +422,9 @@ type Flying = Stamp & { from: { x: number; y: number; size: number } }
 type Gesture =
   | { kind: 'pan'; id: number; sx: number; sy: number; vx: number; vy: number }
   | { kind: 'pinch'; d0: number; s0: number; ax: number; ay: number }
+
+const holesOverlap = (a: Hole, b: Hole) =>
+  a.ix < b.ix + b.is && a.ix + a.is > b.ix && a.iy < b.iy + b.is && a.iy + a.is > b.iy
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 
@@ -476,10 +480,24 @@ export default function StampCutter() {
       return cache.get(src)!
     }
     Promise.all(
-      SAMPLES.map(async ({ src, cx, cy, size: frac }) => {
-        const img = await load(src)
-        const ss = frac * img.naturalWidth
-        const blob = await renderStamp(img, cx * img.naturalWidth - ss / 2, cy * img.naturalHeight - ss / 2, ss, 480)
+      SAMPLES.map(async (sample) => {
+        let blob: Blob
+        if ('file' in sample) {
+          blob = await fetch(sample.file).then((r) => {
+            if (!r.ok) throw new Error(sample.file)
+            return r.blob()
+          })
+        } else {
+          const img = await load(sample.src)
+          const ss = sample.size * img.naturalWidth
+          blob = await renderStamp(
+            img,
+            sample.cx * img.naturalWidth - ss / 2,
+            sample.cy * img.naturalHeight - ss / 2,
+            ss,
+            480,
+          )
+        }
         return { id: nextId.current++, url: URL.createObjectURL(blob), blob, rot: randomTilt(), sample: true }
       }),
     )
@@ -792,21 +810,28 @@ export default function StampCutter() {
     if (!pointers.current.size) setMoving(false)
   }
 
-  /** Put a punched hole back: copy its square from the untouched photo, then re-punch any other holes. */
+  /**
+   * Put a cutout back in one click: restore it and every hole overlapping it
+   * (cutting twice in one spot stacks holes), copying their squares from the
+   * untouched photo, then re-punch the holes that remain.
+   */
   const retake = (hole: Hole) => {
     const paper = paperRef.current
     const original = originalRef.current
     if (!paper || !original) return
     const ctx = paper.getContext('2d')!
-    const x0 = Math.max(0, Math.floor(hole.ix) - 2)
-    const y0 = Math.max(0, Math.floor(hole.iy) - 2)
-    const x1 = Math.min(paper.width, Math.ceil(hole.ix + hole.is) + 2)
-    const y1 = Math.min(paper.height, Math.ceil(hole.iy + hole.is) + 2)
-    if (x1 > x0 && y1 > y0) {
-      ctx.clearRect(x0, y0, x1 - x0, y1 - y0)
-      ctx.drawImage(original, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0)
+    const group = holes.filter((h) => holesOverlap(h, hole))
+    for (const g of group) {
+      const x0 = Math.max(0, Math.floor(g.ix) - 2)
+      const y0 = Math.max(0, Math.floor(g.iy) - 2)
+      const x1 = Math.min(paper.width, Math.ceil(g.ix + g.is) + 2)
+      const y1 = Math.min(paper.height, Math.ceil(g.iy + g.is) + 2)
+      if (x1 > x0 && y1 > y0) {
+        ctx.clearRect(x0, y0, x1 - x0, y1 - y0)
+        ctx.drawImage(original, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0)
+      }
     }
-    const rest = holes.filter((h) => h.id !== hole.id)
+    const rest = holes.filter((h) => !group.includes(h))
     ctx.save()
     ctx.globalCompositeOperation = 'destination-out'
     for (const h of rest) ctx.fill(new Path2D(stampPath(h.is, h.ix, h.iy)))
@@ -886,7 +911,8 @@ export default function StampCutter() {
         <AnimatePresence>
           {view &&
             !moving &&
-            holes.map((h) => {
+            holes.map((h, i) => {
+              if (holes.slice(i + 1).some((later) => holesOverlap(later, h))) return null
               const size = h.is * view.s
               const left = view.x + h.ix * view.s
               const top = view.y + h.iy * view.s
