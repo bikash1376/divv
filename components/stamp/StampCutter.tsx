@@ -28,26 +28,39 @@ const PAGE_BG = '#E8E7E4'
 const INK = '#3B3A37'
 
 /**
- * Square with semicircular bites along every edge and a quarter bite on each
- * corner, like a perforated stamp. Bites sit every `size / TEETH`, corners included,
- * so all four edges meet cleanly. Traced clockwise; every arc curves inward.
+ * Square with semicircular bites along every edge, like a perforated stamp.
+ * Each corner is a solid square tooth as wide as the teeth between bites, so
+ * the corners look like the rest of the edge. Spacing `s` fits TEETH bites plus
+ * one tooth's width (0.36 s) per edge. Traced clockwise; every arc curves inward.
  */
 function stampPath(size: number, ox = 0, oy = 0) {
-  const s = size / TEETH
+  const s = size / (TEETH + 0.36)
   const r = s * 0.32
+  const a = s * 0.68 // corner to first bite centre: one tooth (0.36 s) + one radius
   const f = (n: number) => +n.toFixed(2)
   const arc = (x: number, y: number) => `A${f(r)} ${f(r)} 0 0 0 ${f(x)} ${f(y)}`
   const x1 = ox + size
   const y1 = oy + size
-  let d = `M${f(ox + r)} ${f(oy)}`
-  for (let i = 1; i < TEETH; i++) d += `L${f(ox + i * s - r)} ${f(oy)}${arc(ox + i * s + r, oy)}`
-  d += `L${f(x1 - r)} ${f(oy)}${arc(x1, oy + r)}`
-  for (let i = 1; i < TEETH; i++) d += `L${f(x1)} ${f(oy + i * s - r)}${arc(x1, oy + i * s + r)}`
-  d += `L${f(x1)} ${f(y1 - r)}${arc(x1 - r, y1)}`
-  for (let i = 1; i < TEETH; i++) d += `L${f(x1 - i * s + r)} ${f(y1)}${arc(x1 - i * s - r, y1)}`
-  d += `L${f(ox + r)} ${f(y1)}${arc(ox, y1 - r)}`
-  for (let i = 1; i < TEETH; i++) d += `L${f(ox)} ${f(y1 - i * s + r)}${arc(ox, y1 - i * s - r)}`
-  d += `L${f(ox)} ${f(oy + r)}${arc(ox + r, oy)}`
+  let d = `M${f(ox)} ${f(oy)}`
+  for (let i = 0; i < TEETH; i++) {
+    const c = ox + a + i * s
+    d += `L${f(c - r)} ${f(oy)}${arc(c + r, oy)}`
+  }
+  d += `L${f(x1)} ${f(oy)}`
+  for (let i = 0; i < TEETH; i++) {
+    const c = oy + a + i * s
+    d += `L${f(x1)} ${f(c - r)}${arc(x1, c + r)}`
+  }
+  d += `L${f(x1)} ${f(y1)}`
+  for (let i = 0; i < TEETH; i++) {
+    const c = x1 - a - i * s
+    d += `L${f(c + r)} ${f(y1)}${arc(c - r, y1)}`
+  }
+  d += `L${f(ox)} ${f(y1)}`
+  for (let i = 0; i < TEETH; i++) {
+    const c = y1 - a - i * s
+    d += `L${f(ox)} ${f(c + r)}${arc(ox, c - r)}`
+  }
   return d + 'Z'
 }
 
@@ -361,30 +374,63 @@ function CutterBody({
 /* ---------- page ---------- */
 
 type View = { x: number; y: number; s: number; fit: number }
-type Stamp = { id: number; url: string; blob: Blob; rot: number; sample?: boolean }
+/** One rendered look of a stamp. */
+type Pic = { url: string; blob: Blob }
+/** A stamp in both looks: `white` (picture on white perforated paper, the default) and `cut` (picture cut to the perforation). */
+type Stamp = { id: number; rot: number; sample?: boolean; white: Pic; cut: Pic }
+type Variant = 'white' | 'cut'
 
-// Sample stamps that fill the tray on first visit, in order. Either a ready-made
-// stamp PNG in /public/cutouts, or a crop cut at load time from an image in
-// /public (centre x/y and side length as fractions of the image width/height).
-type Sample = { file: string } | { src: string; cx: number; cy: number; size: number }
+const pic = (blob: Blob): Pic => ({ blob, url: URL.createObjectURL(blob) })
+
+// Sample stamps that fill the tray on first visit, in order: square crops of
+// images in /public, cut at load time (centre x/y as fractions of the image's
+// width/height, side length as a fraction of its width).
+type Sample = { src: string; cx: number; cy: number; size: number }
 const SAMPLES: Sample[] = [
-  { file: '/cutouts/stamp-2.png' },
-  { src: '/image3.jpg', cx: 0.395, cy: 0.695, size: 0.1 },
-  { file: '/cutouts/stamp-1.png' },
-  { file: '/cutouts/stamp-3.png' },
-  { file: '/cutouts/stamp-4.png' },
+  { src: '/cutouts/stamp-2.png', cx: 0.5, cy: 0.5, size: 0.92 }, // already perforated: trimmed inside its edge
+  { src: '/image3.jpg', cx: 0.395, cy: 0.695, size: 0.1 }, // purple sticky note
+  { src: '/cutouts/thumb-1.png', cx: 0.447, cy: 0.387, size: 0.862 }, // goat with the cup
+  { src: '/cutouts/thumb-3.jpg', cx: 0.5, cy: 0.5, size: 1 }, // portrait
+  { src: '/cutouts/thumb-4.png', cx: 0.1944, cy: 0.5, size: 0.3889 }, // trees, hills and sky
 ]
 
-/** Draw the square (sx, sy, side ss) of `src` into a perforated stamp PNG. */
-function renderStamp(src: CanvasImageSource, sx: number, sy: number, ss: number, out: number) {
-  const c = document.createElement('canvas')
-  c.width = c.height = out
-  const ctx = c.getContext('2d')!
-  ctx.clip(new Path2D(stampPath(out)))
+const toPng = (c: HTMLCanvasElement) =>
+  new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob'))), 'image/png'))
+
+/**
+ * Draw the square (sx, sy, side ss) of `src` as a stamp, in both looks:
+ * - white: white perforated paper with the picture inset as a square, like a postage stamp
+ * - cut: the picture itself cut to the perforated edge
+ * Both are drawn before this returns; only the PNG encoding is async.
+ */
+function renderStamps(src: CanvasImageSource, sx: number, sy: number, ss: number, out: number) {
+  const edge = new Path2D(stampPath(out))
+  const canvas = () => {
+    const c = document.createElement('canvas')
+    c.width = c.height = out
+    return [c, c.getContext('2d')!] as const
+  }
+
+  const [cut, cctx] = canvas()
+  cctx.clip(edge)
   const f = out / ss
-  ctx.setTransform(f, 0, 0, f, -sx * f, -sy * f)
-  ctx.drawImage(src, 0, 0)
-  return new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob'))), 'image/png'))
+  cctx.setTransform(f, 0, 0, f, -sx * f, -sy * f)
+  cctx.drawImage(src, 0, 0)
+
+  const [white, wctx] = canvas()
+  wctx.clip(edge)
+  wctx.fillStyle = '#FFFFFF'
+  wctx.fillRect(0, 0, out, out)
+  const m = Math.round(out * 0.065) // paper margin: just clear of the perforations (bites reach ~3%)
+  const inner = out - 2 * m
+  wctx.beginPath()
+  wctx.rect(m, m, inner, inner)
+  wctx.clip()
+  const g = inner / ss
+  wctx.setTransform(g, 0, 0, g, m - sx * g, m - sy * g)
+  wctx.drawImage(src, 0, 0)
+
+  return { white: toPng(white), cut: toPng(cut) }
 }
 
 /**
@@ -480,25 +526,18 @@ export default function StampCutter() {
       return cache.get(src)!
     }
     Promise.all(
-      SAMPLES.map(async (sample) => {
-        let blob: Blob
-        if ('file' in sample) {
-          blob = await fetch(sample.file).then((r) => {
-            if (!r.ok) throw new Error(sample.file)
-            return r.blob()
-          })
-        } else {
-          const img = await load(sample.src)
-          const ss = sample.size * img.naturalWidth
-          blob = await renderStamp(
-            img,
-            sample.cx * img.naturalWidth - ss / 2,
-            sample.cy * img.naturalHeight - ss / 2,
-            ss,
-            480,
-          )
-        }
-        return { id: nextId.current++, url: URL.createObjectURL(blob), blob, rot: randomTilt(), sample: true }
+      SAMPLES.map(async (sample): Promise<Stamp> => {
+        const img = await load(sample.src)
+        const ss = sample.size * img.naturalWidth
+        const looks = renderStamps(
+          img,
+          sample.cx * img.naturalWidth - ss / 2,
+          sample.cy * img.naturalHeight - ss / 2,
+          ss,
+          480,
+        )
+        const [white, cut] = await Promise.all([looks.white, looks.cut])
+        return { id: nextId.current++, rot: randomTilt(), sample: true, white: pic(white), cut: pic(cut) }
       }),
     )
       .then((list) => alive && setStamps((cur) => [...cur, ...list]))
@@ -625,8 +664,8 @@ export default function StampCutter() {
     lastLever.current = now
     clearTimeout(hintTimer.current)
     hintTimer.current = setTimeout(() => {
-      if (seen('hint')) return
-      markSeen('hint')
+      // Keep reminding on every lone click until they've cut a stamp once (the cheer marks that)
+      if (seen('cheer')) return
       const touch = window.matchMedia('(pointer: coarse)').matches
       flash(touch ? 'double tap to cut' : 'double click to cut')
     }, 320)
@@ -650,13 +689,15 @@ export default function StampCutter() {
   // Viewer's copy button label: morphs Copy → Copied, then back
   const [copyLabel, setCopyLabel] = useState('Copy')
   const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [variant, setVariant] = useState<Variant>('white')
   const openStamp = (s: Stamp) => {
     clearTimeout(copyTimer.current)
     setCopyLabel('Copy')
+    setVariant('white')
     setSelected(s)
   }
   const copySelected = (s: Stamp) =>
-    copy(Promise.resolve(s.blob), (ok) => {
+    copy(Promise.resolve(s[variant].blob), (ok) => {
       setCopyLabel(ok ? 'Copied' : "Couldn't copy")
       clearTimeout(copyTimer.current)
       copyTimer.current = setTimeout(() => setCopyLabel('Copy'), 1600)
@@ -687,8 +728,9 @@ export default function StampCutter() {
     setPunching(true)
     setTimeout(() => setPunching(false), 160)
 
-    // Copy the window out of the paper (before punching), clipped to the perforated edge
-    const blob = renderStamp(paper, ix, iy, is, Math.round(clamp(is, 320, 1024)))
+    // Copy the window out of the paper (before punching), in both looks
+    const looks = renderStamps(paper, ix, iy, is, Math.round(clamp(is, 320, 1024)))
+    const blob = looks.white
 
     // ...and punch the hole out of the paper
     const p = paper.getContext('2d')!
@@ -706,11 +748,11 @@ export default function StampCutter() {
         setTimeout(() => flash(ok ? 'copied to clipboard' : "couldn't copy, it's in the tray"), 1300)
       })
     }
-    blob.then((b) => {
+    Promise.all([looks.white, looks.cut]).then(([white, cutout]) => {
       setFlying({
         id: nextId.current++,
-        url: URL.createObjectURL(b),
-        blob: b,
+        white: pic(white),
+        cut: pic(cutout),
         rot: randomTilt(),
         from: { x: hx, y: hy, size: hole },
       })
@@ -984,7 +1026,7 @@ export default function StampCutter() {
               {selected?.id !== s.id && (
                 <motion.img
                   layoutId={`stamp-${s.id}`}
-                  src={s.url}
+                  src={s.white.url}
                   alt=''
                   draggable={false}
                   className='size-full'
@@ -1002,7 +1044,7 @@ export default function StampCutter() {
         {flying && (
           <motion.img
             key={flying.id}
-            src={flying.url}
+            src={flying.white.url}
             alt=''
             className='pointer-events-none absolute left-0 top-0'
             style={{ filter: 'drop-shadow(-3px 5px 5px rgba(0,0,0,0.25))' }}
@@ -1140,8 +1182,8 @@ export default function StampCutter() {
             <div className='relative flex flex-col items-center gap-10'>
               <motion.img
                 layoutId={`stamp-${selected.id}`}
-                src={selected.url}
-                alt={selected.sample ? 'Sample stamp' : 'Your stamp'}
+                src={selected[variant].url}
+                alt={`${selected.sample ? 'Sample stamp' : 'Your stamp'}, ${variant === 'white' ? 'on white paper' : 'cut out'}`}
                 draggable={false}
                 initial={{ rotate: selected.rot }}
                 animate={{ rotate: 0 }}
@@ -1170,14 +1212,29 @@ export default function StampCutter() {
                   </TextMorph>
                 </button>
                 <a
-                  href={selected.url}
-                  download={`stamp-${selected.id}.png`}
+                  href={selected[variant].url}
+                  download={`stamp-${selected.id}${variant === 'cut' ? '-cutout' : ''}.png`}
                   onPointerDown={clickSound}
                   className={`${btnClass} inline-flex items-center`}
                   style={secondaryBtn}
                 >
                   Download
                 </a>
+                <button
+                  type='button'
+                  aria-pressed={variant === 'cut'}
+                  aria-label={variant === 'white' ? 'Show the cut-out version' : 'Show the white paper version'}
+                  onPointerDown={clickSound}
+                  onClick={() => {
+                    clearTimeout(copyTimer.current)
+                    setCopyLabel('Copy')
+                    setVariant((v) => (v === 'white' ? 'cut' : 'white'))
+                  }}
+                  className={`${btnClass} inline-flex items-center`}
+                  style={secondaryBtn}
+                >
+                  Variant
+                </button>
               </motion.div>
             </div>
           </motion.div>
