@@ -212,7 +212,8 @@ function CutterBody({
       style={{
         width: W,
         height: H,
-        filter: 'drop-shadow(-16px 24px 22px rgba(0,0,0,0.26)) drop-shadow(-3px 5px 5px rgba(0,0,0,0.2))',
+        filter:
+          'drop-shadow(-1px 2px 1.5px rgba(0,0,0,0.22)) drop-shadow(-8px 14px 12px rgba(0,0,0,0.16)) drop-shadow(-22px 40px 38px rgba(0,0,0,0.18))',
       }}
     >
       <svg className='absolute size-0' aria-hidden>
@@ -342,6 +343,7 @@ function CutterBody({
       {empty && (
         <button
           type='button'
+          data-upload-plus
           aria-label='Upload a photo'
           onPointerDown={(e) => {
             e.stopPropagation()
@@ -573,7 +575,25 @@ const holesOverlap = (a: Hole, b: Hole) =>
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 
-export default function StampCutter() {
+/**
+ * Shot mode (/stamp?shot&...): a posed frame with no page UI, for product shots.
+ * - photo: image URL to load; cover: let it fill the frame
+ * - pz: extra zoom into a cover photo; pp: the photo point (fractions) to put at the frame centre
+ * - zoom: cutter scale (1 = actual size); at: cutter centre as fractions of the frame
+ * - win: window size in px; bg: page colour
+ */
+export type Shot = {
+  photo?: string
+  cover?: boolean
+  zoom?: number
+  at?: [number, number]
+  win?: Win
+  bg?: string
+  pz?: number
+  pp?: [number, number]
+}
+
+export default function StampCutter({ shot }: { shot?: Shot }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const paperRef = useRef<HTMLCanvasElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -595,22 +615,27 @@ export default function StampCutter() {
   const [say, setSay] = useState<{ id: number; text: string } | null>(null)
   const [selected, setSelected] = useState<Stamp | null>(null)
   const [holes, setHoles] = useState<Hole[]>([])
+  const [paperSize, setPaperSize] = useState<{ w: number; h: number } | null>(null)
   const [moving, setMoving] = useState(false)
   const originalRef = useRef<HTMLCanvasElement | null>(null)
   const wheelTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const narrow = size.w > 0 && size.w < 640
   // Bigger cutter: a bit on desktop, a lot on phones; never taller than the screen allows
-  const [win, setWin] = useState<Win>({ w: WIN_MIN, h: WIN_MIN })
+  const [win, setWin] = useState<Win>(shot?.win ?? { w: WIN_MIN, h: WIN_MIN })
   const [resizing, setResizing] = useState(false) // the sliders toggle: shows the resize arrows
   const { W, H } = bodySize(win)
   /** On-screen scale for a body this tall: a bit bigger on desktop, never taller than the screen allows. */
   const scaleFor = (bodyH: number) => (size.h ? Math.min(narrow ? 0.92 : 1.15, (size.h - 150) / bodyH) : 1)
-  const k = scaleFor(H)
+  const k = shot?.zoom ?? scaleFor(H)
   const cw = W * k
   const ch = H * k
   const empty = !view
-  const cutter = pos ?? { x: (size.w - cw) / 2, y: Math.max(72, (size.h - ch) / 2 - 24) }
+  const cutter =
+    pos ??
+    (shot?.at
+      ? { x: shot.at[0] * size.w - cw / 2, y: shot.at[1] * size.h - ch / 2 }
+      : { x: (size.w - cw) / 2, y: Math.max(72, (size.h - ch) / 2 - 24) })
 
   // Cut the sample stamps once, so the tray isn't empty on first visit
   useEffect(() => {
@@ -703,6 +728,7 @@ export default function StampCutter() {
       const r = Math.min(1, 2800 / Math.max(img.naturalWidth, img.naturalHeight))
       paper.width = Math.round(img.naturalWidth * r)
       paper.height = Math.round(img.naturalHeight * r)
+      setPaperSize({ w: paper.width, h: paper.height })
       paper.getContext('2d')?.drawImage(img, 0, 0, paper.width, paper.height)
       const original = document.createElement('canvas')
       original.width = paper.width
@@ -712,11 +738,25 @@ export default function StampCutter() {
       setHoles([])
       URL.revokeObjectURL(url)
       const { w, h } = sizeRef.current
-      const fit = Math.min((w - 48) / paper.width, (h - 200) / paper.height)
-      setView({ fit, s: fit, x: (w - paper.width * fit) / 2, y: (h - paper.height * fit) / 2 - 16 })
+      const fit = shot?.cover
+        ? Math.max(w / paper.width, h / paper.height)
+        : Math.min((w - 48) / paper.width, (h - 200) / paper.height)
+      setView({ fit, s: fit, x: (w - paper.width * fit) / 2, y: (h - paper.height * fit) / 2 - (shot?.cover ? 0 : 16) })
     }
     img.src = url
   }
+
+  // Shot mode: load the photo once the stage has been measured
+  const shotLoaded = useRef(false)
+  useEffect(() => {
+    if (!shot?.photo || !size.w || shotLoaded.current) return
+    shotLoaded.current = true
+    fetch(shot.photo)
+      .then((r) => r.blob())
+      .then((b) => loadFile(new File([b], 'shot', { type: b.type || 'image/png' })))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shot?.photo, size.w])
 
   // Wheel zoom (non-passive so the page doesn't scroll), paste, and +/- keys
   useEffect(() => {
@@ -1117,7 +1157,10 @@ export default function StampCutter() {
   const trayTarget = { x: GUTTER + TILE + 12, y: size.h - GUTTER - TILE }
 
   return (
-    <main className='fixed inset-0 select-none overflow-hidden' style={{ background: PAGE_BG, color: INK }}>
+    <main className='fixed inset-0 select-none overflow-hidden' style={{ background: shot?.bg ?? PAGE_BG, color: INK }}>
+      {shot && (
+        <style>{`[data-tray],[data-resize-ui],[data-bubble],[data-upload-plus],[aria-label^="Retake"],nextjs-portal{display:none!important}`}</style>
+      )}
       <div
         ref={stageRef}
         className={`absolute inset-0 touch-none ${view ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -1142,7 +1185,17 @@ export default function StampCutter() {
             className='absolute left-0 top-0 origin-top-left'
             style={{
               visibility: view ? 'visible' : 'hidden',
-              transform: view ? `translate(${view.x}px, ${view.y}px) scale(${view.s})` : undefined,
+              transform: (() => {
+                if (shot?.cover && paperSize && size.w) {
+                  const s = Math.max(size.w / paperSize.w, size.h / paperSize.h) * (shot.pz ?? 1)
+                  const [fx, fy] = shot.pp ?? [0.5, 0.5]
+                  // put the focus point at the centre, but never uncover the frame
+                  const x = clamp(size.w / 2 - fx * paperSize.w * s, size.w - paperSize.w * s, 0)
+                  const y = clamp(size.h / 2 - fy * paperSize.h * s, size.h - paperSize.h * s, 0)
+                  return `translate(${x}px, ${y}px) scale(${s})`
+                }
+                return view ? `translate(${view.x}px, ${view.y}px) scale(${view.s})` : undefined
+              })(),
             }}
           />
         </div>
@@ -1425,6 +1478,7 @@ export default function StampCutter() {
               {bubble && !resizing && (
                 <motion.div
                   key={bubble.key}
+                  data-bubble
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, transition: { duration: 0.15 } }}
