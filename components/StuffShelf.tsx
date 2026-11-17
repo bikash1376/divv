@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -13,7 +14,7 @@ import ScratchCard, { THEMES, type Look } from "@/components/ScratchCard";
 
 // The last card's mark: four petals turning forever. Purely decorative — it takes
 // no input, and the SMIL loop keeps running without any JS.
-const SpinMark = () => (
+export const SpinMark = () => (
   <svg viewBox="0 0 72 72" className="size-24" aria-hidden>
     <g fill="#e063bb">
       <animateTransform
@@ -38,12 +39,28 @@ type Stuff = { name: string; component?: React.ReactNode; href?: string };
 
 const STUFF: Stuff[] = [
   // { name: "Hold button", component: <HoldToAnimate /> },
+  { name: "Stamp cutter", component: <StampStuff />, href: "/stamp" },
   { name: "Chain multiselect", component: <ChainStuff />, href: "/multiselect" },
-  { name: "Mobile menu", component: <MobileMenu /> },
   { name: "Pan loader", component: <PanCompare /> },
+  { name: "Mobile menu", component: <MobileMenu /> },
   { name: "Scratch card", component: <ScratchStuff />, href: "/scratch-card" },
-  { name: "Untitled", component: <SpinMark /> },
+  // { name: "Untitled", component: <SpinMark /> },
 ];
+
+// The cutter is a whole page, so the card is a still of it that opens /stamp.
+function StampStuff() {
+  return (
+    <Link href="/stamp" aria-label="Open the stamp cutter" className="absolute inset-0">
+      <Image
+        src="/stamp-card.webp"
+        alt="Stamp cutter"
+        fill
+        sizes="312px"
+        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+      />
+    </Link>
+  );
+}
 
 // matches the pan loader card's control icons
 const ICON = "#cfcfcf";

@@ -41,6 +41,13 @@ const PROJECTS: Project[] = [
       "https://app.wonder.so/bikash/files/01a12ad4-3b78-780e-8fcc-04802839a717/branches/main/pages/01a12ad4-3b7a-7d3a-af74-c6eadef29a3e",
   },
   {
+    name: "iOTA Design",
+    description:
+      "Give your agent taste: one prompt installs 65 components and the rules that go with them into your coding agent.",
+    image: "/projects/iota-design.webp",
+    href: "https://design.useiota.space",
+  },
+  {
     name: "Cirrus",
     description: "An animated Framer template for agencies — bold type, fluid motion and a premium, editorial layout.",
     image: "/projects/cirrus.webp",
