@@ -117,3 +117,94 @@ const Experience = () => (
 );
 
 export default Experience;
+
+// Home-page version, in the 470px column's style: one row
+// per job — role @ company on the left, dates on the right. Rows with `details`
+// open with the same + / × as above.
+const FG_40 = "rgb(29 29 29 / 0.4)";
+const FG_50 = "rgb(29 29 29 / 0.5)";
+
+const CompactRow = ({ job }: { job: Job }) => {
+  const [open, setOpen] = useState(false);
+  const company =
+    job.company && job.href ? (
+      <a
+        href={job.href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="underline decoration-1 underline-offset-2 transition-opacity hover:opacity-60"
+      >
+        {job.company}
+      </a>
+    ) : (
+      job.company
+    );
+
+  const line = (
+    <>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate">
+          {job.role}
+          {job.company && <span style={{ color: FG_40 }}> @ </span>}
+          {company}
+        </span>
+        {job.details && (
+          <motion.svg
+            viewBox="0 0 16 16"
+            width={10}
+            height={10}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            aria-hidden
+            className="shrink-0"
+            style={{ color: FG_40 }}
+            animate={{ rotate: open ? 45 : 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 26 }}
+          >
+            <path d="M8 3v10M3 8h10" />
+          </motion.svg>
+        )}
+      </span>
+      <span className="shrink-0 tabular-nums" style={{ color: FG_40 }}>
+        {job.when}
+      </span>
+    </>
+  );
+
+  const row = "flex w-full items-center justify-between gap-2.5 text-left";
+  if (!job.details) return <li className={row}>{line}</li>;
+
+  return (
+    <li>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={`${row} cursor-pointer`}>
+        {line}
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.p
+            className="overflow-hidden"
+            style={{ color: FG_50 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <span className="block pt-2.5">{job.details}</span>
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </li>
+  );
+};
+
+export const ExperienceList = () => (
+  // the sticky tabs label it, so no heading of its own
+  <ul className="flex flex-col gap-[30px]">
+    {JOBS.map((job) => (
+      <CompactRow key={`${job.role}-${job.company}`} job={job} />
+    ))}
+  </ul>
+);

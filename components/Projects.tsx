@@ -1,15 +1,18 @@
 "use client"
 import Image from "next/image";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
-import Reveal from "@/components/Reveal";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import MediaShelf, { type Shot } from "@/components/MediaShelf";
 
-// Selected projects from bikash.useiota.space; thumbnails live in /public/projects.
-// `figma` / `framer` / `wonder` add an icon link to the source file next to the live one.
+// Selected projects; thumbnails live in /public/projects, bigger shots and clips in /public/v2.
+// `figma` / `framer` / `wonder` add a link to the source file next to the live one.
+// `media` is what the row shows, left to right, when it's opened.
 type Project = {
   name: string;
+  kind: string;
   description: string;
   image: string;
+  media: string[];
   href: string;
   figma?: string;
   framer?: string;
@@ -19,12 +22,16 @@ type Project = {
 const PROJECTS: Project[] = [
   {
     name: "iota",
+    kind: "Tool · WIP",
+    media: ["/v2/useiota.png", "/projects/iota.jpg"],
     description: "A collection of small web animation tools. Draw, tweak, and export SVG animations. (WIP)",
     image: "/projects/iota.jpg",
     href: "https://useiota.space",
   },
   {
     name: "Zineps (redesign)",
+    kind: "Redesign",
+    media: ["/v2/zineps-hero.png", "/projects/zineps.jpg"],
     description: "Redesign of the Zineps logistics platform: landing page and dashboard, from Figma to code.",
     image: "/projects/zineps.jpg",
     href: "https://zineps-redesign.vercel.app/",
@@ -33,6 +40,8 @@ const PROJECTS: Project[] = [
   },
   {
     name: "Petals",
+    kind: "Design tool · WIP",
+    media: ["/v2/petals-redesign.mp4", "/projects/petals.webp", "/v2/petal-pattern.svg"],
     description:
       "Browser-based design tool with a canvas, frames, layers and a full inspector — local-first, nothing leaves the device. (WIP)",
     image: "/projects/petals.webp",
@@ -42,6 +51,8 @@ const PROJECTS: Project[] = [
   },
   {
     name: "iOTA Design",
+    kind: "Agent kit",
+    media: ["/projects/iota-design.webp"],
     description:
       "Give your agent taste: one prompt installs 65 components and the rules that go with them into your coding agent.",
     image: "/projects/iota-design.webp",
@@ -49,6 +60,8 @@ const PROJECTS: Project[] = [
   },
   {
     name: "Cirrus",
+    kind: "Framer template",
+    media: ["/projects/cirrus.webp"],
     description: "An animated Framer template for agencies — bold type, fluid motion and a premium, editorial layout.",
     image: "/projects/cirrus.webp",
     href: "https://cirrus.framer.website/",
@@ -56,6 +69,8 @@ const PROJECTS: Project[] = [
   },
   {
     name: "StudyDeck",
+    kind: "Concept",
+    media: ["/projects/study-deck.jpg"],
     description:
       "AI study app that turns any topic, PDF or photo of your notes into flashcards and quizzes that remember what you got wrong.",
     image: "/projects/study-deck.jpg",
@@ -66,6 +81,8 @@ const PROJECTS: Project[] = [
   },
   {
     name: "Trition",
+    kind: "Workspace",
+    media: ["/v2/trition-ui.png", "/projects/trition.jpg"],
     description:
       "A Notion-like workspace that stores every page, block and table directly in your Trello boards — no separate database.",
     image: "/projects/trition.jpg",
@@ -73,21 +90,30 @@ const PROJECTS: Project[] = [
   },
   {
     name: "RevPDF",
+    kind: "Reader",
+    media: ["/v2/revpdf.png", "/projects/revpdf.jpg"],
     description: "Local PDF, EPUB, DOC and DOCX reader with Chrome-style selection search.",
     image: "/projects/revpdf.jpg",
     href: "https://revpdf.in",
   },
   {
+    name: "Prepara",
+    kind: "Landing page",
+    media: ["/v2/prepara-hero.png", "/v2/prepara-cta.png", "/projects/prepara.jpg"],
+    description: "Landing page for an exam-prep app — a calm hero, clear plans and a closing call to action.",
+    image: "/projects/prepara.jpg",
+    href: "https://prepara.useiota.space",
+  },
+  {
     name: "Dotfolio",
+    kind: "Framer template",
+    media: ["/projects/dotfolio.webp"],
     description: "Minimal, dot-matrix portfolio for developers — a free Framer template.",
     image: "/projects/dotfolio.webp",
     href: "https://satisfied-fact-878900.framer.app/",
     framer: "https://www.framer.com/marketplace/templates/dotfolio/",
   },
 ];
-
-// same column as the sections above and below it
-const COLUMN = 820;
 
 // Logo chip in the project's title line: icon-only in the resting row, then the
 // source name slides out when the row is hovered. The SVGs carry their own colour.
@@ -125,84 +151,115 @@ export const ProjectIconLink = ({
   </a>
 );
 
-// The row itself is the live-site link (a stretched link under the content, so the
-// icon links can sit on top without nesting anchors inside one another).
-const ProjectRow = ({ project }: { project: Project }) => (
-  <li className="group relative flex items-center gap-4 py-5 sm:gap-6">
-    <div className="w-24 shrink-0 overflow-hidden rounded-xl bg-[#F2F2F2] sm:w-32">
-      <Image
-        src={project.image}
-        width={256}
-        height={160}
-        alt=""
-        draggable="false"
-        className="aspect-[16/10] w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-      />
-    </div>
-    <div className="min-w-0 flex-1">
-      <p className="flex items-center gap-1 text-base text-neutral-800 transition-colors group-hover:text-neutral-500">
+// every project's shots in list order, so the viewer can run on from one project into the next
+const ALL_SHOTS: Shot[] = PROJECTS.flatMap((p) => p.media.map((src) => ({ src, project: p.name })));
+
+const FG_40 = "rgb(29 29 29 / 0.4)";
+const FG_50 = "rgb(29 29 29 / 0.5)";
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+
+const SOURCES = [
+  { key: "figma", text: "Figma" },
+  { key: "framer", text: "Framer" },
+  { key: "wonder", text: "Wonder" },
+] as const;
+
+// Name + kind + a plus that turns into ×; opening it reveals the description,
+// the links and a left-to-right shelf of the project's shots.
+const ProjectRow = ({ project, open, onToggle }: { project: Project; open: boolean; onToggle: () => void }) => (
+  <li className="transition-opacity duration-300 ease-[cubic-bezier(.2,.8,.2,1)]">
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      className="flex w-full cursor-pointer items-center justify-between gap-2.5 text-left"
+    >
+      <span className="flex min-w-0 items-center gap-2">
         <span className="truncate">{project.name}</span>
-        {/* kept visible (not hover-only) so touch users can see the row is a link */}
-        <HugeiconsIcon
-          icon={ArrowUpRight01Icon}
-          size={16}
+        <motion.svg
+          viewBox="0 0 16 16"
+          width={10}
+          height={10}
+          fill="none"
+          stroke="currentColor"
           strokeWidth={2}
-          className="shrink-0 text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neutral-800"
-        />
-        {(project.figma || project.framer || project.wonder) && (
-          <span className="ml-2 flex items-center gap-1.5">
-            {project.figma && (
-              <ProjectIconLink
-                href={project.figma}
-                logo={{ src: "/figma-logo.svg", width: 10, height: 15 }}
-                label={`${project.name} — Figma file`}
-                text="Figma"
-              />
-            )}
-            {project.framer && (
-              <ProjectIconLink
-                href={project.framer}
-                logo={{ src: "/framer-logo.svg", width: 10, height: 15 }}
-                label={`${project.name} — Framer template`}
-                text="Framer"
-              />
-            )}
-            {project.wonder && (
-              <ProjectIconLink
-                href={project.wonder}
-                logo={{ src: "/wonder-logo-icon.png", width: 15, height: 15, blend: true }}
-                label={`${project.name} — Wonder file`}
-                text="Wonder"
-              />
-            )}
-          </span>
-        )}
-      </p>
-      <p className="mt-1 text-sm leading-normal text-neutral-500">{project.description}</p>
-    </div>
-    <a
-      href={project.href}
-      target="_blank"
-      rel="noreferrer"
-      aria-label={`${project.name} — live site`}
-      className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
-    />
+          strokeLinecap="round"
+          aria-hidden
+          className="shrink-0"
+          style={{ color: FG_40 }}
+          animate={{ rotate: open ? 45 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 26 }}
+        >
+          <path d="M8 3v10M3 8h10" />
+        </motion.svg>
+      </span>
+      <span className="shrink-0" style={{ color: FG_40 }}>
+        {project.kind}
+      </span>
+    </button>
+
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          className="overflow-hidden"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3, ease: EASE_OUT }}
+        >
+          <p className="pt-2.5" style={{ color: FG_50 }}>
+            {project.description}
+          </p>
+          <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs leading-4">
+            <a
+              href={project.href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-1 underline-offset-2 transition-opacity hover:opacity-60"
+            >
+              Visit ↗
+            </a>
+            {SOURCES.filter((src) => project[src.key]).map((src) => (
+              <a
+                key={src.key}
+                href={project[src.key]}
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-1 underline-offset-2 transition-opacity hover:opacity-60"
+                style={{ color: FG_50 }}
+              >
+                {src.text} file ↗
+              </a>
+            ))}
+          </p>
+          <MediaShelf
+            name={project.name}
+            media={project.media}
+            all={ALL_SHOTS}
+            offset={ALL_SHOTS.findIndex((m) => m.project === project.name)}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   </li>
 );
 
-const Projects = () => (
-  <Reveal id="projects" className="bg-[#FBFBFB] pb-16" style={{ fontFamily: "var(--font-inter)" }}>
-    <div className="mx-auto w-full px-4 tracking-tight" style={{ maxWidth: COLUMN + 32 }}>
-      <h2 className="text-lg text-neutral-800">Selected Projects</h2>
-
-      {/* hairlines between rows, and one above the first under the heading */}
-      <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200">
-        {PROJECTS.map((project) => (
-          <ProjectRow key={project.name} project={project} />
-        ))}
-      </ul>
-    </div>
-  </Reveal>
-);
+const Projects = () => {
+  // one open at a time, so the list stays short
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    // hovering a row (mouse only) fades the others back
+    <ul className="flex flex-col gap-[30px] [@media(hover:hover)]:[&:has(>li:hover)>li:not(:hover)]:opacity-40">
+      {PROJECTS.map((project) => (
+        <ProjectRow
+          key={project.name}
+          project={project}
+          open={open === project.name}
+          onToggle={() => setOpen((o) => (o === project.name ? null : project.name))}
+        />
+      ))}
+    </ul>
+  );
+};
 
 export default Projects;

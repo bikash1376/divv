@@ -71,3 +71,7 @@ body {
 ::view-transition-new(root) {
   animation-duration: 400ms;
 }
+
+::selection {
+  background: oklch(90.1% 0.058 230.902);
+}

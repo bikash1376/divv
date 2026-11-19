@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, ViewTransition } from "react";
 // "contribution level" 0–4, darker = more. Every hit knocks a cell down one
 // level, so dark cells take several hits and level 0 is an empty (cleared) day.
 // level 0 is a touch darker than the card so empty days still read as cells
-const LEVEL_COLORS = ["#e4e4e4", "#c4c4c4", "#8f8f8f", "#525252", "#1f1f1f"];
+export const LEVEL_COLORS = ["#e4e4e4", "#c4c4c4", "#8f8f8f", "#525252", "#1f1f1f"];
 const COLORS = {
   bg: "#FBFBFB",
   card: "#F2F2F2",
