@@ -15,18 +15,18 @@ import { TextMorph } from 'torph/react'
 // Cutter geometry, in unscaled px. The window can be resized; the body grows
 // around it (wider window: wider body; taller window: everything below moves down).
 const R = 40
-const HX = 38 // body edge to window, left and right
-const HY = 38 // body edge to window, top
-const WIN_MIN = 112 // smallest (and default) window side
+export const HX = 38 // body edge to window, left and right
+export const HY = 38 // body edge to window, top
+export const WIN_MIN = 112 // smallest (and default) window side
 const WIN_MAX_W = 220
 const WIN_MAX_H = 200
 const WIN_STEP = 12 // one click on a resize arrow
 const BASE_H = 292 // body height at the smallest window
 const TEETH = 10
 
-type Win = { w: number; h: number }
+export type Win = { w: number; h: number }
 /** Body size for a window size. */
-const bodySize = (win: Win) => ({ W: win.w + 2 * HX, H: BASE_H + (win.h - WIN_MIN), dy: win.h - WIN_MIN })
+export const bodySize = (win: Win) => ({ W: win.w + 2 * HX, H: BASE_H + (win.h - WIN_MIN), dy: win.h - WIN_MIN })
 
 const TILE = 64
 const GUTTER = 16
@@ -40,7 +40,7 @@ const INK = '#3B3A37'
  * shorter side gets TEETH bites; longer sides get as many as fit at the same
  * spacing, so teeth look alike all round. Traced clockwise; arcs curve inward.
  */
-function stampPath(w: number, h: number, ox = 0, oy = 0) {
+export function stampPath(w: number, h: number, ox = 0, oy = 0) {
   const unit = Math.min(w, h) / (TEETH + 0.36)
   const f = (n: number) => +n.toFixed(2)
   // bites along one edge of length len: count, spacing, radius, corner-to-first-centre
@@ -131,8 +131,8 @@ function burst(dur: number, freq: number, gain: number, type: BiquadFilterType =
     // audio is a nicety; ignore if unavailable
   }
 }
-const clickSound = () => burst(0.03, 1800, 0.08)
-const punchSound = () => {
+export const clickSound = () => burst(0.03, 1800, 0.08)
+export const punchSound = () => {
   burst(0.12, 420, 0.5, 'lowpass', 0.7)
   burst(0.05, 2600, 0.1)
 }
@@ -162,7 +162,7 @@ const fadeMask = (deg: number): CSSProperties => {
 
 /* ---------- the cutter ---------- */
 
-function CutterBody({
+export function CutterBody({
   win,
   pressed,
   empty,
@@ -485,7 +485,7 @@ const toPng = (c: HTMLCanvasElement) =>
  * - cut: the picture itself cut to the perforated edge
  * Both are drawn before this returns; only the PNG encoding is async.
  */
-function renderStamps(
+export function renderStamps(
   src: CanvasImageSource,
   sx: number,
   sy: number,
