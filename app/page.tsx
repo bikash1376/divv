@@ -26,7 +26,7 @@ const UPDATED = "Updated November 2026";
 
 // Links read as the surrounding text with a fine dashed rule under it (drawn as
 // a background, since text-decoration dashes can't be made thinner or shorter)
-const DASHED_CLASS = "bg-[length:100%_1px] bg-bottom bg-repeat-x pb-[3px] transition-colors duration-200 hover:text-[#AAAAAF]";
+const DASHED_CLASS = "whitespace-nowrap bg-[length:100%_1px] bg-[position:0_calc(100%-1px)] bg-repeat-x transition-colors duration-200 hover:text-[#AAAAAF]";
 const DASHED_STYLE: React.CSSProperties = {
   backgroundImage:
     "repeating-linear-gradient(to right, currentColor 0 2px, transparent 2px 4px)",
