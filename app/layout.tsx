@@ -24,6 +24,8 @@ const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   : "http://localhost:3000";
 
 const TITLE = "Bikash Sahu — Design Engineer building tools for the web";
+// shorter title for link previews (WhatsApp, X, LinkedIn, Facebook)
+const SHARE_TITLE = "Bikash • Design Engineer";
 const DESCRIPTION =
   "Designer & developer crafting interfaces for small teams, and tinkering on side projects.";
 
@@ -31,8 +33,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Bikash Sahu" },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  openGraph: { title: SHARE_TITLE, description: DESCRIPTION, type: "website", url: "/", siteName: "Bikash Sahu" },
+  twitter: { card: "summary_large_image", title: SHARE_TITLE, description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
