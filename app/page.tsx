@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import Projects from "@/components/Projects";
 import Craft from "@/components/Craft";
 import { ExperienceList } from "@/components/Experience";
+import { LogoLink } from "@/components/IntroLinks";
 
 // Layout and type follow madebyadi.cc: Geist 14/18, one 470px column, 30px
 // between every block, 12px meta text.
@@ -12,22 +13,31 @@ const COLUMN = 470;
 const GAP = 30;
 
 // Adi's palette: near-black text, faded tints of it, three link accents
-const FG = "rgb(29 29 29)";
+const FG = "#9A717A";
 const FG_40 = "rgb(29 29 29 / 0.4)";
 const BLUE = "#417dff";
-const ORANGE = "#ff7328";
+const PETALS = "#e063bb"; // the Petals mark's pink
 
 const X_HREF = "https://x.com/bikash1376";
+const GITHUB_HREF = "https://github.com/bikash1376";
 const EMAIL = "bikash13763@gmail.com";
 
 const UPDATED = "Updated November 2026";
 
-const Accent = ({ href, color, children }: { href: string; color?: string; children: React.ReactNode }) => (
+// Links read as the surrounding text with a fine dashed rule under it (drawn as
+// a background, since text-decoration dashes can't be made thinner or shorter)
+const DASHED_CLASS = "bg-[length:100%_1px] bg-bottom bg-repeat-x pb-[3px] transition-colors duration-200 hover:text-[#AAAAAF]";
+const DASHED_STYLE: React.CSSProperties = {
+  backgroundImage:
+    "repeating-linear-gradient(to right, currentColor 0 2px, transparent 2px 4px)",
+};
+
+const Accent = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <a
     href={href}
     {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
-    className="underline decoration-1 underline-offset-2 transition-[text-underline-offset,opacity] hover:underline-offset-[3px]"
-    style={{ color }}
+    className={DASHED_CLASS}
+    style={DASHED_STYLE}
   >
     {children}
   </a>
@@ -164,19 +174,22 @@ const HomePage = () => {
   const panel = useRef<HTMLElement>(null);
   // Show tab `t`. If the tabs are stuck at the top, jump back to the start of the
   // panel so the new one is read from its first line.
-  const goTo = useCallback((t: Tab) => {
+  // `reveal` (from the intro links) glides down to the panel; switching tabs only
+  // jumps back up when you're already scrolled past the panel's start
+  const goTo = useCallback((t: Tab, reveal = false) => {
     setTab(t);
     setShowcase(false);
     const el = panel.current;
     if (!el) return;
     const start = el.getBoundingClientRect().top + window.scrollY - SCROLL_MARGIN;
-    if (window.scrollY > start) window.scrollTo({ top: start, behavior: "instant" });
+    if (reveal) window.scrollTo({ top: start, behavior: "smooth" });
+    else if (window.scrollY > start) window.scrollTo({ top: start, behavior: "instant" });
   }, []);
 
   return (
     <div
       className="min-h-svh bg-[#fcfbfc] antialiased"
-      style={{ color: FG, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", fontSize: 14, lineHeight: "18px" }}
+      style={{ color: FG, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", fontSize: 14, lineHeight: "20px" }}
     >
       <Showcase show={showcase} />
       <main
@@ -193,7 +206,19 @@ const HomePage = () => {
         </header>
 
         <p>
-          I&rsquo;m Bikash, a design engineer crafting interfaces for small teams, and{" "}
+          I&rsquo;m Bikash, a design engineer{" "}
+          <a
+            href="#craft"
+            onClick={(e) => {
+              e.preventDefault();
+              goTo("Craft", true);
+            }}
+            className={DASHED_CLASS}
+            style={DASHED_STYLE}
+          >
+            crafting interfaces
+          </a>{" "}
+          for small teams, and{" "}
           {/* hover shows the drifting walls of project shots; click opens the Projects tab */}
           <a
             href="#projects"
@@ -201,11 +226,10 @@ const HomePage = () => {
             onMouseLeave={() => setShowcase(false)}
             onClick={(e) => {
               e.preventDefault();
-              setShowcase(false);
-              goTo("Projects");
+              goTo("Projects", true);
             }}
-            className="transition-colors hover:text-[rgb(29_29_29)]"
-            style={{ color: "rgb(29 29 29 / 0.45)" }}
+            className={DASHED_CLASS}
+            style={DASHED_STYLE}
           >
             tinkering on side projects
           </a>
@@ -219,19 +243,17 @@ const HomePage = () => {
 
         <p>
           Lately I&rsquo;m building{" "}
-          <Accent href="https://useiota.space" color={BLUE}>
-            iota
-          </Accent>
-          , a collection of small web animation tools, and designing{" "}
-          <Accent href="https://petalsapp.vercel.app" color={ORANGE}>
-            Petals
-          </Accent>
-          , a local-first design tool in the browser.
+          <LogoLink href="https://useiota.space" logo="/iota-icon.png" text="iOTA" color={BLUE} />, a collection of small web animation
+          tools, and designing{" "}
+          <LogoLink href="https://petalsapp.vercel.app" logo="/petals-mark.svg" text="Petals" color={PETALS} />, a
+          local-first design tool in the browser.
         </p>
 
-        <p style={{ color: FG_40 }}>
-          You can find me on <Accent href={X_HREF} color={FG}>X (Twitter)</Accent> or email me at{" "}
-          <Accent href={`mailto:${EMAIL}`} color={FG}>
+        <p>
+          I&rsquo;m open to work, full-time or freelance. Find me on{" "}
+          <Accent href={X_HREF}>X (Twitter)</Accent> and <Accent href={GITHUB_HREF}>GitHub</Accent>,
+          or email me at{" "}
+          <Accent href={`mailto:${EMAIL}`}>
             {EMAIL}
           </Accent>
         </p>
