@@ -75,3 +75,21 @@ body {
 ::selection {
   background: oklch(90.1% 0.058 230.902);
 }
+
+/* home page showcase walls: endless vertical drift (the list is doubled, so -50% loops seamlessly) */
+@keyframes drift-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+@keyframes drift-down {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
+}
+
+/* autoplaying clips never show the browser's play/pause overlay (iOS / Safari) */
+video::-webkit-media-controls,
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+}

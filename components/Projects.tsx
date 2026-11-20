@@ -1,6 +1,6 @@
 "use client"
 import Image from "next/image";
-import { useState } from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import MediaShelf, { type Shot } from "@/components/MediaShelf";
 
@@ -23,7 +23,7 @@ const PROJECTS: Project[] = [
   {
     name: "iota",
     kind: "Tool · WIP",
-    media: ["/v2/useiota.png", "/projects/iota.jpg"],
+    media: ["/projects/videos/iota-walkthrough.mp4", "/v2/useiota.png"],
     description: "A collection of small web animation tools. Draw, tweak, and export SVG animations. (WIP)",
     image: "/projects/iota.jpg",
     href: "https://useiota.space",
@@ -31,7 +31,7 @@ const PROJECTS: Project[] = [
   {
     name: "Zineps (redesign)",
     kind: "Redesign",
-    media: ["/v2/zineps-hero.png", "/projects/zineps.jpg"],
+    media: ["/v2/zineps-hero.png", "/projects/shots/zineps-bento.webp"],
     description: "Redesign of the Zineps logistics platform: landing page and dashboard, from Figma to code.",
     image: "/projects/zineps.jpg",
     href: "https://zineps-redesign.vercel.app/",
@@ -41,7 +41,7 @@ const PROJECTS: Project[] = [
   {
     name: "Petals",
     kind: "Design tool · WIP",
-    media: ["/v2/petals-redesign.mp4", "/projects/petals.webp", "/v2/petal-pattern.svg"],
+    media: ["/projects/videos/petals-projects.mp4", "/v2/petals-redesign.mp4", "/v2/petal-pattern.svg"],
     description:
       "Browser-based design tool with a canvas, frames, layers and a full inspector — local-first, nothing leaves the device. (WIP)",
     image: "/projects/petals.webp",
@@ -61,7 +61,7 @@ const PROJECTS: Project[] = [
   {
     name: "Cirrus",
     kind: "Framer template",
-    media: ["/projects/cirrus.webp"],
+    media: [1, 2, 3, 4].map((i) => `/projects/shots/cirrus-${i}.webp`),
     description: "An animated Framer template for agencies — bold type, fluid motion and a premium, editorial layout.",
     image: "/projects/cirrus.webp",
     href: "https://cirrus.framer.website/",
@@ -99,7 +99,7 @@ const PROJECTS: Project[] = [
   {
     name: "Prepara",
     kind: "Landing page",
-    media: ["/v2/prepara-hero.png", "/v2/prepara-cta.png", "/projects/prepara.jpg"],
+    media: [1, 2, 3, 4, 5].map((i) => `/projects/shots/prepara-${i}.webp`),
     description: "Landing page for an exam-prep app — a calm hero, clear plans and a closing call to action.",
     image: "/projects/prepara.jpg",
     href: "https://prepara.useiota.space",
@@ -107,7 +107,7 @@ const PROJECTS: Project[] = [
   {
     name: "Dotfolio",
     kind: "Framer template",
-    media: ["/projects/dotfolio.webp"],
+    media: [1, 2, 3].map((i) => `/projects/shots/dotfolio-${i}.webp`),
     description: "Minimal, dot-matrix portfolio for developers — a free Framer template.",
     image: "/projects/dotfolio.webp",
     href: "https://satisfied-fact-878900.framer.app/",
@@ -159,10 +159,33 @@ const FG_50 = "rgb(29 29 29 / 0.5)";
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 const SOURCES = [
-  { key: "figma", text: "Figma" },
-  { key: "framer", text: "Framer" },
-  { key: "wonder", text: "Wonder" },
+  { key: "figma", text: "Figma", logo: { src: "/figma-logo.svg", width: 8, height: 12 } },
+  { key: "framer", text: "Framer", logo: { src: "/framer-logo.svg", width: 8, height: 12 } },
+  { key: "wonder", text: "Wonder", logo: { src: "/wonder-logo-icon.png", width: 12, height: 12, blend: true } },
 ] as const;
+
+// Pill link: soft grey chip with a small mark on the left, like a swatch chip
+const Chip = ({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[#F2F2F2] pl-2 pr-3 text-[13px] leading-none transition-colors hover:bg-[#E9E9E9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+  >
+    <span aria-hidden className="grid size-3.5 shrink-0 place-items-center">
+      {icon}
+    </span>
+    {children}
+  </a>
+);
+
+// globe mark for the live site
+const VisitIcon = () => (
+  <svg viewBox="0 0 16 16" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.3} style={{ color: "rgb(29 29 29 / 0.55)" }}>
+    <circle cx="8" cy="8" r="6.25" />
+    <path d="M1.75 8h12.5M8 1.75c1.8 1.7 2.7 3.8 2.7 6.25S9.8 12.55 8 14.25C6.2 12.55 5.3 10.45 5.3 8S6.2 3.45 8 1.75Z" />
+  </svg>
+);
 
 // Name + kind + a plus that turns into ×; opening it reveals the description,
 // the links and a left-to-right shelf of the project's shots.
@@ -193,7 +216,12 @@ const ProjectRow = ({ project, open, onToggle }: { project: Project; open: boole
           <path d="M8 3v10M3 8h10" />
         </motion.svg>
       </span>
-      <span className="shrink-0" style={{ color: FG_40 }}>
+      {/* the tag steps aside while the row is open */}
+      <span
+        className="shrink-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(.16,1,.3,1)]"
+        style={{ color: FG_40, opacity: open ? 0 : 1, transform: open ? "translateX(6px)" : "none" }}
+        aria-hidden={open}
+      >
         {project.kind}
       </span>
     </button>
@@ -210,28 +238,30 @@ const ProjectRow = ({ project, open, onToggle }: { project: Project; open: boole
           <p className="pt-2.5" style={{ color: FG_50 }}>
             {project.description}
           </p>
-          <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs leading-4">
-            <a
-              href={project.href}
-              target="_blank"
-              rel="noreferrer"
-              className="underline decoration-1 underline-offset-2 transition-opacity hover:opacity-60"
-            >
-              Visit ↗
-            </a>
+          <div className="mb-1 mt-4 flex flex-wrap gap-2">
+            <Chip href={project.href} icon={<VisitIcon />}>
+              Visit
+            </Chip>
             {SOURCES.filter((src) => project[src.key]).map((src) => (
-              <a
+              <Chip
                 key={src.key}
-                href={project[src.key]}
-                target="_blank"
-                rel="noreferrer"
-                className="underline decoration-1 underline-offset-2 transition-opacity hover:opacity-60"
-                style={{ color: FG_50 }}
+                href={project[src.key]!}
+                icon={
+                  <Image
+                    src={src.logo.src}
+                    alt=""
+                    width={src.logo.width}
+                    height={src.logo.height}
+                    unoptimized
+                    className={"blend" in src.logo ? "mix-blend-multiply" : ""}
+                    style={{ width: src.logo.width, height: src.logo.height }}
+                  />
+                }
               >
-                {src.text} file ↗
-              </a>
+                {src.text}
+              </Chip>
             ))}
-          </p>
+          </div>
           <MediaShelf
             name={project.name}
             media={project.media}

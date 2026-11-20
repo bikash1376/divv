@@ -22,6 +22,9 @@ const Media = ({ src, alt, sizes, fit }: { src: string; alt: string; sizes: stri
       loop
       playsInline
       preload="metadata"
+      controls={false}
+      disablePictureInPicture
+      disableRemotePlayback
       className={`size-full ${fit === "cover" ? "object-cover" : "object-contain"}`}
     />
   ) : (

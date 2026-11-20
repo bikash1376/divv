@@ -1,7 +1,7 @@
 "use client"
 import Image from "next/image";
 import React, { useCallback, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import Projects from "@/components/Projects";
 import Craft from "@/components/Craft";
 import { ExperienceList } from "@/components/Experience";
@@ -48,19 +48,20 @@ const SHOWCASE_IMAGES = [
 // how much of each side of the screen a wall covers (vw)
 const SHOWCASE_WIDTH = 38;
 const SHOWCASE_TILT = 24;
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const EASE_OUT_CSS = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SHOWCASE_OPACITY = 0.4;
 
 // One endlessly scrolling column. The list is rendered twice and moved by -50%,
 // so when it loops the second copy sits exactly where the first one started.
 // (Spacing is mb-* on each item, not gap, so both halves are the same height.)
+// The drift is a CSS animation (runs on the compositor, not the JS thread) and
+// is paused while the wall is hidden.
 const ShowcaseColumn = ({ shift, reverse, duration }: { shift: number; reverse?: boolean; duration: number }) => {
   const images = SHOWCASE_IMAGES.map((_, i) => SHOWCASE_IMAGES[(i + shift) % SHOWCASE_IMAGES.length]);
   return (
-    <motion.div
-      className="flex flex-col"
-      animate={{ y: reverse ? ["-50%", "0%"] : ["0%", "-50%"] }}
-      transition={{ duration, repeat: Infinity, ease: "linear" }}
+    <div
+      className="flex flex-col will-change-transform [animation-play-state:var(--drift-state)]"
+      style={{ animation: `${reverse ? "drift-down" : "drift-up"} ${duration}s linear infinite` }}
     >
       {[...images, ...images].map((src, i) => (
         <div key={i} className="mb-6 rounded-xl border border-[rgb(29_29_29/0.1)] bg-white p-1.5 shadow-sm">
@@ -70,11 +71,13 @@ const ShowcaseColumn = ({ shift, reverse, duration }: { shift: number; reverse?:
             height={160}
             alt=""
             draggable="false"
+            // loaded up front, so nothing decodes mid-fade on the first hover
+            loading="eager"
             className="h-40 w-64 rounded-lg object-cover"
           />
         </div>
       ))}
-    </motion.div>
+    </div>
   );
 };
 
@@ -101,23 +104,29 @@ const ShowcaseWall = ({ side }: { side: "left" | "right" }) => (
   </div>
 );
 
+// Always mounted: hovering only fades its opacity (cheap), instead of mounting
+// ~80 images and scaling a full-screen masked layer. Once faded out it's
+// hidden and its drift paused, so it costs nothing while you read.
 const Showcase = ({ show }: { show: boolean }) => (
-  <AnimatePresence>
-    {show && (
-      <motion.div
-        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-        initial={{ opacity: 0, scale: 1.04 }}
-        animate={{ opacity: SHOWCASE_OPACITY, scale: 1 }}
-        exit={{ opacity: 0, scale: 1.04 }}
-        transition={{ duration: 0.6, ease: EASE_OUT }}
-      >
-        <ShowcaseWall side="left" />
-        <ShowcaseWall side="right" />
-      </motion.div>
-    )}
-  </AnimatePresence>
+  <div
+    aria-hidden
+    className="pointer-events-none fixed inset-0 z-0 overflow-hidden will-change-[opacity]"
+    style={
+      {
+        opacity: show ? SHOWCASE_OPACITY : 0,
+        visibility: show ? "visible" : "hidden",
+        // fade in at once; on the way out, hide only after the fade finishes
+        transition: show
+          ? `opacity 0.6s ${EASE_OUT_CSS}, visibility 0s`
+          : `opacity 0.45s ${EASE_OUT_CSS}, visibility 0s 0.45s`,
+        "--drift-state": show ? "running" : "paused",
+      } as React.CSSProperties
+    }
+  >
+    <ShowcaseWall side="left" />
+    <ShowcaseWall side="right" />
+  </div>
 );
-
 
 const TABS = ["Projects", "Craft", "Experience"] as const;
 type Tab = (typeof TABS)[number];

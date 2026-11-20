@@ -1,5 +1,5 @@
 "use client"
-import React, { startTransition, useEffect, useLayoutEffect, useRef, useState, ViewTransition } from "react";
+import React, { startTransition, useLayoutEffect, useRef, useState, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -78,39 +78,28 @@ function BrickStuff() {
   );
 }
 
-// ---- Clips: loop silently, but only while on screen, so a dozen 60fps videos
-// aren't all decoding at once ----
+// ---- Clips: always autoplaying, silent, looping, with no controls ----
 
 // Part of a clip to show, as fractions of its frame (x, y = top-left; w, h = size)
 type Crop = { x: number; y: number; w: number; h: number };
 const FULL: Crop = { x: 0, y: 0, w: 1, h: 1 };
 
 function Clip({ src, crop = FULL }: { src: string; crop?: Crop }) {
-  const video = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const el = video.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) el.play().catch(() => {});
-        else el.pause();
-      },
-      { threshold: 0.25 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
   return (
     <video
-      ref={video}
       src={src}
+      autoPlay
       muted
       loop
       playsInline
-      preload="metadata"
+      preload="auto"
+      // never show any player chrome (no play/pause button, no PiP button)
+      controls={false}
+      disablePictureInPicture
+      disableRemotePlayback
       // the video is blown up so the cropped part fills the card, and shifted so
       // that part sits at the card's top-left
-      className="absolute max-w-none"
+      className="pointer-events-none absolute max-w-none object-cover"
       style={{
         width: `${100 / crop.w}%`,
         height: `${100 / crop.h}%`,
@@ -131,7 +120,10 @@ function PetalsStuff() {
 // One piece per row, or a pair side by side. Each is laid out at its own design size (w × h, in px) and
 // zoomed to the column's width, so on phones it shrinks instead of reflowing.
 // Clips use their video's own proportions.
-type Piece = { name: string; w: number; h: number; render: () => React.ReactNode };
+// `href` makes the whole card a link (http ones open in a new tab)
+type Piece = { name: string; w: number; h: number; render: () => React.ReactNode; href?: string };
+
+const linked = (piece: Piece, href: string): Piece => ({ ...piece, href });
 
 // `crop` trims a clip to where the action is; the card takes the cropped shape
 const clip = (name: string, src: string, w = 1920, h = 1080, crop: Crop = FULL): Piece => ({
@@ -141,24 +133,30 @@ const clip = (name: string, src: string, w = 1920, h = 1080, crop: Crop = FULL):
   render: () => <Clip src={src} crop={crop} />,
 });
 
+// Singles and pairs alternate from Ask Lovable on, for rhythm. Pairs are the
+// same shape (16:9, or the same design box) so their halves line up.
 const PIECES: (Piece | Piece[])[] = [
-  clip("Chain multiselect", "/crafts/multiselect.mp4"),
-  // the two live pieces share a row; same design size, so the halves line up
+  linked(clip("Chain multiselect", "/crafts/multiselect.mp4"), "/multiselect"),
   [
     { name: "Stamp cutter", w: 312, h: 340, render: () => <StampStuff /> },
     { name: "Brick breaker", w: 312, h: 340, render: () => <BrickStuff /> },
   ],
-  clip("Signup form", "/crafts/signup-form.mp4"),
-  clip("Ask Lovable", "/crafts/ask-lovable.mp4"),
+  linked(clip("Signup form", "/crafts/signup-form.mp4"), "/form"),
   clip("Grid", "/v2/grid.mp4"),
+  clip("Ask Lovable", "/crafts/ask-lovable.mp4"),
+  [
+    clip("Family card", "/crafts/family-card.mp4", 1280, 720),
+    linked(clip("Copy SVG", "/v2/copy-svg.mp4"), "https://useiota.space/apps/patterns"),
+  ],
   clip("Gooey text", "/crafts/gooey-text.mp4", 1856, 1080),
+  [clip("Framer boi", "/crafts/framer-boi.mp4"), clip("Stamp loader", "/crafts/loading-animation-stamp.mp4")],
   clip("Hover to delete", "/crafts/hover-delete-option.mp4"),
-  clip("Kitchen loaders", "/crafts/kitchen-loaders.mp4", 720, 720),
+  // deepseek is a touch wider than 16:9; the pair uses one 16:9 box and the clip covers it
+  [clip("DeepSeek", "/crafts/deepseek-solid.mp4"), clip("Switch", "/crafts/switch.mp4")],
+  linked(clip("Kitchen loaders", "/crafts/kitchen-loaders.mp4", 720, 720), "/exp"),
   clip("Tools hover", "/crafts/tools-hover.mp4", 1280, 720),
-  // both 16:9, so the halves line up
-  [clip("Family card", "/crafts/family-card.mp4", 1280, 720), clip("Copy SVG", "/v2/copy-svg.mp4")],
   clip("Folio", "/crafts/folio.mp4", 1280, 720),
-  clip("Write iota", "/crafts/write-iota.mp4"),
+  linked(clip("Write iota", "/crafts/write-iota.mp4"), "https://useiota.space/apps/write"),
   { name: "Petals pattern", w: 736, h: 342, render: () => <PetalsStuff /> },
 ];
 
@@ -188,6 +186,23 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
           {piece.render()}
         </div>
       )}
+      {/* a stretched link over the whole card */}
+      {piece.href &&
+        (piece.href.startsWith("http") ? (
+          <a
+            href={piece.href}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${piece.name}`}
+            className="absolute inset-0 z-10 cursor-pointer rounded-[20px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
+          />
+        ) : (
+          <Link
+            href={piece.href}
+            aria-label={`Open ${piece.name}`}
+            className="absolute inset-0 z-10 cursor-pointer rounded-[20px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
+          />
+        ))}
     </li>
   );
 };
