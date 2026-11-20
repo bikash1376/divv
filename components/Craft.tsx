@@ -4,18 +4,22 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import BrickBreaker, { LEVEL_COLORS } from "@/components/BrickBreaker";
+import { Skeleton, useLoaded } from "@/components/Skeleton";
 
 // ---- Stamp cutter: a still of the page; the whole card opens /stamp ----
 
 function StampStuff() {
+  const { loaded, onLoad } = useLoaded();
   return (
     <Link href="/stamp" aria-label="Open the stamp cutter" className="absolute inset-0 cursor-pointer">
+      <Skeleton visible={!loaded} />
       <Image
         src="/stamp-card.webp"
         alt="Stamp cutter"
         fill
         sizes="240px"
-        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        onLoad={onLoad}
+        className={`object-cover transition-[transform,opacity] duration-500 group-hover:scale-[1.03] ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </Link>
   );
@@ -85,8 +89,13 @@ type Crop = { x: number; y: number; w: number; h: number };
 const FULL: Crop = { x: 0, y: 0, w: 1, h: 1 };
 
 function Clip({ src, crop = FULL }: { src: string; crop?: Crop }) {
+  const { loaded, onLoad, videoRef } = useLoaded();
   return (
+    <>
+    <Skeleton visible={!loaded} />
     <video
+      ref={videoRef}
+      onLoadedData={onLoad}
       src={src}
       autoPlay
       muted
@@ -99,7 +108,7 @@ function Clip({ src, crop = FULL }: { src: string; crop?: Crop }) {
       disableRemotePlayback
       // the video is blown up so the cropped part fills the card, and shifted so
       // that part sits at the card's top-left
-      className="pointer-events-none absolute max-w-none object-cover"
+      className={`pointer-events-none absolute max-w-none object-cover transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
       style={{
         width: `${100 / crop.w}%`,
         height: `${100 / crop.h}%`,
@@ -107,12 +116,26 @@ function Clip({ src, crop = FULL }: { src: string; crop?: Crop }) {
         top: `${(-crop.y / crop.h) * 100}%`,
       }}
     />
+    </>
   );
 }
 
 // the animated petal pattern (its SMIL animation runs inside <img>)
 function PetalsStuff() {
-  return <Image src="/v2/petal-pattern.svg" alt="" fill unoptimized className="object-cover" />;
+  const { loaded, onLoad } = useLoaded();
+  return (
+    <>
+      <Skeleton visible={!loaded} />
+      <Image
+        src="/v2/petal-pattern.svg"
+        alt=""
+        fill
+        unoptimized
+        onLoad={onLoad}
+        className={`object-cover transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </>
+  );
 }
 
 // ---- The list ----
@@ -153,7 +176,7 @@ const PIECES: (Piece | Piece[])[] = [
   clip("Hover to delete", "/crafts/hover-delete-option.mp4"),
   // deepseek is a touch wider than 16:9; the pair uses one 16:9 box and the clip covers it
   [clip("DeepSeek", "/crafts/deepseek-solid.mp4"), clip("Switch", "/crafts/switch.mp4")],
-  linked(clip("Kitchen loaders", "/crafts/kitchen-loaders.mp4", 720, 720), "/exp"),
+  linked(clip("Kitchen loaders", "/crafts/kitchen-loaders.mp4", 720, 720), "/loaders"),
   clip("Tools hover", "/crafts/tools-hover.mp4", 1280, 720),
   clip("Folio", "/crafts/folio.mp4", 1280, 720),
   linked(clip("Write iota", "/crafts/write-iota.mp4"), "https://useiota.space/apps/write"),

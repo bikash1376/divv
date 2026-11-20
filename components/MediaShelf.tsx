@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { Skeleton, useLoaded } from "@/components/Skeleton";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const MORPH = { duration: 0.5, ease: EASE_OUT };
@@ -13,31 +14,66 @@ const VIEW_RADIUS = 20;
 
 const isVideo = (src: string) => /\.(mp4|webm|mov)$/i.test(src);
 
-const Media = ({ src, alt, sizes, fit }: { src: string; alt: string; sizes: string; fit: "cover" | "contain" }) =>
-  isVideo(src) ? (
-    <video
-      src={src}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      controls={false}
-      disablePictureInPicture
-      disableRemotePlayback
-      className={`size-full ${fit === "cover" ? "object-cover" : "object-contain"}`}
-    />
-  ) : (
-    <Image
-      src={src}
-      alt={alt}
-      fill
-      sizes={sizes}
-      draggable="false"
-      unoptimized={src.endsWith(".svg")}
-      className={fit === "cover" ? "object-cover object-top" : "object-contain"}
-    />
+// An image or video with a shimmering skeleton until it's ready. `preview`
+// (viewer only) puts the shelf-sized copy, already loaded, underneath the large
+// one, so the viewer shows something sharp-ish at once and the big file
+// simply sharpens it; the skeleton then only shows for shots never loaded.
+const Media = ({
+  src,
+  alt,
+  sizes,
+  fit,
+  preview,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  fit: "cover" | "contain";
+  preview?: boolean;
+}) => {
+  const { loaded, onLoad, videoRef } = useLoaded();
+  const { loaded: lowLoaded, onLoad: onLowLoad } = useLoaded();
+  const fitClass = fit === "cover" ? "object-cover object-top" : "object-contain";
+  if (isVideo(src))
+    return (
+      <>
+        <Skeleton visible={!loaded} />
+        <video
+          ref={videoRef}
+          src={src}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          controls={false}
+          disablePictureInPicture
+          disableRemotePlayback
+          onLoadedData={onLoad}
+          className={`relative size-full transition-opacity duration-500 ${fitClass} ${loaded ? "opacity-100" : "opacity-0"}`}
+        />
+      </>
+    );
+  const svg = src.endsWith(".svg");
+  return (
+    <>
+      <Skeleton visible={!loaded && !(preview && lowLoaded)} />
+      {preview && !svg && (
+        <Image src={src} alt="" fill sizes="340px" draggable="false" onLoad={onLowLoad} className={fitClass} />
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        draggable="false"
+        unoptimized={svg}
+        onLoad={onLoad}
+        className={`transition-opacity duration-500 ${fitClass} ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </>
   );
+};
 
 // Where the viewer frame sits, and how to place it exactly over a thumbnail
 // (as an offset + scale from that resting spot)
@@ -240,7 +276,13 @@ const MediaShelf = ({
                         else if (swipe > 80) go(-1);
                       }}
                     >
-                      <Media src={all[index].src} alt={`${all[index].project} — ${inProject + 1} of ${projectCount}`} sizes="92vw" fit="contain" />
+                      <Media
+                        src={all[index].src}
+                        alt={`${all[index].project} — ${inProject + 1} of ${projectCount}`}
+                        sizes="92vw"
+                        fit="contain"
+                        preview
+                      />
                     </motion.div>
                   </AnimatePresence>
                 </motion.div>
