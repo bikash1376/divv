@@ -198,7 +198,7 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
     <li
       ref={box}
       aria-label={piece.name}
-      className={`group relative overflow-hidden rounded-[20px] bg-[#F2F2F2] ${className}`}
+      className={`group relative overflow-hidden rounded-[12px] bg-[#F2F2F2] ${className}`}
       style={{ aspectRatio: `${piece.w} / ${piece.h}` }}
     >
       {width > 0 && (
@@ -217,13 +217,13 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
             target="_blank"
             rel="noreferrer"
             aria-label={`Open ${piece.name}`}
-            className="absolute inset-0 z-10 cursor-pointer rounded-[20px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
+            className="absolute inset-0 z-10 cursor-pointer rounded-[12px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
           />
         ) : (
           <Link
             href={piece.href}
             aria-label={`Open ${piece.name}`}
-            className="absolute inset-0 z-10 cursor-pointer rounded-[20px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
+            className="absolute inset-0 z-10 cursor-pointer rounded-[12px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
           />
         ))}
     </li>
