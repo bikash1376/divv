@@ -1,5 +1,5 @@
 "use client"
-import React, { startTransition, useLayoutEffect, useRef, useState, ViewTransition } from "react";
+import React, { startTransition, useEffect, useLayoutEffect, useRef, useState, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -88,20 +88,51 @@ function BrickStuff() {
 type Crop = { x: number; y: number; w: number; h: number };
 const FULL: Crop = { x: 0, y: 0, w: 1, h: 1 };
 
+// Clips only load once they come near the screen, and only play while on it:
+// otherwise every clip in the list decodes at once and scrolling stutters.
 function Clip({ src, crop = FULL }: { src: string; crop?: Crop }) {
   const { loaded, onLoad, videoRef } = useLoaded();
+  const el = useRef<HTMLVideoElement | null>(null);
+  const [near, setNear] = useState(false);
+  const visible = useRef(false);
+
+  useEffect(() => {
+    const video = el.current;
+    if (!video) return;
+    // start fetching a screen ahead, so it's ready by the time it scrolls in
+    const loader = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { rootMargin: "600px 0px" });
+    // play only while some of it is visible
+    const player = new IntersectionObserver(([e]) => {
+      visible.current = e.isIntersecting;
+      if (e.isIntersecting) video.play().catch(() => {});
+      else video.pause();
+    });
+    loader.observe(video);
+    player.observe(video);
+    return () => {
+      loader.disconnect();
+      player.disconnect();
+    };
+  }, []);
+
   return (
     <>
     <Skeleton visible={!loaded} />
     <video
-      ref={videoRef}
+      ref={(v) => {
+        el.current = v;
+        videoRef(v);
+      }}
       onLoadedData={onLoad}
-      src={src}
-      autoPlay
+      // once enough has loaded, start it if it's already on screen
+      onCanPlay={(e) => {
+        if (visible.current) e.currentTarget.play().catch(() => {});
+      }}
+      src={near ? src : undefined}
       muted
       loop
       playsInline
-      preload="auto"
+      preload={near ? "auto" : "none"}
       // never show any player chrome (no play/pause button, no PiP button)
       controls={false}
       disablePictureInPicture
@@ -144,7 +175,8 @@ function PetalsStuff() {
 // zoomed to the column's width, so on phones it shrinks instead of reflowing.
 // Clips use their video's own proportions.
 // `href` makes the whole card a link (http ones open in a new tab)
-type Piece = { name: string; w: number; h: number; render: () => React.ReactNode; href?: string };
+// `fluid` pieces size themselves with percentages, so they skip the zoomed design box
+type Piece = { name: string; w: number; h: number; render: () => React.ReactNode; href?: string; fluid?: boolean };
 
 const linked = (piece: Piece, href: string): Piece => ({ ...piece, href });
 
@@ -153,6 +185,7 @@ const clip = (name: string, src: string, w = 1920, h = 1080, crop: Crop = FULL):
   name,
   w: w * crop.w,
   h: h * crop.h,
+  fluid: true,
   render: () => <Clip src={src} crop={crop} />,
 });
 
@@ -201,7 +234,9 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
       className={`group relative overflow-hidden rounded-[12px] bg-[#F2F2F2] ${className}`}
       style={{ aspectRatio: `${piece.w} / ${piece.h}` }}
     >
-      {width > 0 && (
+      {/* clips fill the card directly: CSS zoom around a playing video forces relayout + repaint */}
+      {piece.fluid && piece.render()}
+      {!piece.fluid && width > 0 && (
         <div
           className="relative flex items-center justify-center"
           style={{ width: piece.w, height: piece.h, zoom: width / piece.w }}
