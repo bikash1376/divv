@@ -3,7 +3,8 @@
 
 export type Ink = 'light' | 'dark'
 
-export type CardGradient = { id: string; label: string; background: string; ink: Ink }
+// `inkTop` overrides the text colour for the top row when the gradient changes tone top to bottom
+export type CardGradient = { id: string; label: string; background: string; ink: Ink; inkTop?: Ink }
 
 export const GRADIENTS: CardGradient[] = [
   {
@@ -26,7 +27,8 @@ export const GRADIENTS: CardGradient[] = [
   {
     id: 'spectrum',
     label: 'Spectrum',
-    ink: 'light',
+    ink: 'dark',
+    inkTop: 'light',
     background: 'linear-gradient(180deg, #1c1f4a 0%, #3d4bb8 30%, #a7c0f1 55%, #f9bb9e 75%, #f38858 90%, #e6651b 100%)',
   },
   {

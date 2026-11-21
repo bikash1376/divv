@@ -10,14 +10,16 @@ import {
   useTransform,
   type MotionValue,
 } from 'motion/react'
-import type { CSSProperties, PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
 import { INK, type CardGradient, type CardMotif } from '@/lib/cardStyles'
 
-const PERSON = {
-  name: 'Aditi Rao',
-  role: 'Head of Design',
-  email: 'aditi.rao@sarvam.ai',
-}
+// the email is always <handle>@sarvam.ai; only the handle is editable
+export type Person = { name: string; handle: string }
+export const EMAIL_DOMAIN = 'sarvam.ai'
+export type EditField = 'name' | 'email'
+
+export const DEFAULT_PERSON: Person = { name: 'Aditi Rao', handle: 'aditi.rao' }
+const ROLE = 'Head of Design'
 
 // Tilt follows the pointer closely; the light trails behind it
 const TILT = { stiffness: 180, damping: 22, mass: 0.6 }
@@ -61,20 +63,98 @@ function Motif({ motif, color, opacity }: { motif: CardMotif; color: string; opa
   return <img src={motif.src} alt='' className={`${cls} max-w-none`} style={{ opacity }} />
 }
 
+// A line of card text that turns into an input inside a soft pill. The pill has one
+// layoutId, so moving from name to email glides it across the card.
+function Editable({
+  value,
+  editing,
+  onChange,
+  onEnter,
+  pill,
+  caret,
+  label,
+  className = '',
+  children,
+}: {
+  value: string
+  editing: boolean
+  onChange: (v: string) => void
+  onEnter: () => void
+  pill: CSSProperties
+  caret: string
+  label: string
+  className?: string
+  children: React.ReactNode
+}) {
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const el = input.current
+    if (!editing || !el) return
+    el.focus({ preventScroll: true })
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [editing])
+
+  if (!editing) return <span className={`relative inline-grid ${className}`}>{children}</span>
+  return (
+    <span className={`relative inline-grid ${className}`}>
+      <motion.span
+        layoutId='card-edit-pill'
+        aria-hidden
+        className='absolute -inset-x-[0.9cqw] -inset-y-[0.15cqw] rounded-[1.1cqw]'
+        style={pill}
+        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+      />
+      {/* invisible copy of the text sizes the input to its content */}
+      <span aria-hidden className='invisible col-start-1 row-start-1 whitespace-pre'>
+        {value || ' '}
+      </span>
+      <input
+        size={1}
+        ref={input}
+        value={value}
+        aria-label={label}
+        spellCheck={false}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onEnter()}
+        className='relative col-start-1 row-start-1 w-full min-w-0 select-text bg-transparent p-0 text-inherit outline-none [font:inherit] [letter-spacing:inherit]'
+        style={{ caretColor: caret }}
+      />
+    </span>
+  )
+}
+
 type Props = {
   gradient: CardGradient
   motif: CardMotif
   interactive?: boolean
+  person?: Person
+  editField?: EditField | null
+  onPersonChange?: (field: EditField, value: string) => void
+  onFieldDone?: () => void
 }
 
-export default function CompanyCard({ gradient, motif, interactive = true }: Props) {
+export default function CompanyCard({
+  gradient,
+  motif,
+  interactive = true,
+  person = DEFAULT_PERSON,
+  editField = null,
+  onPersonChange,
+  onFieldDone,
+}: Props) {
   const reduce = useReducedMotion()
   const ink = INK[gradient.ink]
+  const top = INK[gradient.inkTop ?? gradient.ink]
   // line art on pale cards stays faint (5–8% ink), per the Sarvam mandala rules
   const pale = gradient.ink === 'dark' && motif.kind === 'mask'
   const restOpacity = (motif.rest ?? 0) * (pale ? 0.45 : 1)
   const litOpacity = (motif.lit ?? 0) * (pale ? 0.55 : 1)
-  const effects = !reduce && interactive
+  // hover light and tilt rest while a field is being typed in
+  const effects = !reduce && interactive && !editField
+  const pill: CSSProperties =
+    gradient.ink === 'light'
+      ? { background: 'rgba(255,255,255,.07)', boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,.3)' }
+      : { background: 'rgba(31,31,31,.035)', boxShadow: 'inset 0 0 0 0.5px rgba(31,31,31,.18)' }
 
   // pointer position across the card (0..1) and whether it is over the card
   const px = useMotionValue(0.5)
@@ -103,6 +183,13 @@ export default function CompanyCard({ gradient, motif, interactive = true }: Pro
     py.set(0.5)
     over.set(0)
   }
+  // flatten the card when the effects switch off (e.g. on entering text editing)
+  useEffect(() => {
+    if (effects) return
+    px.set(0.5)
+    py.set(0.5)
+    over.set(0)
+  }, [effects, px, py, over])
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!effects || e.pointerType !== 'mouse') return
     const r = e.currentTarget.getBoundingClientRect()
@@ -264,25 +351,34 @@ export default function CompanyCard({ gradient, motif, interactive = true }: Pro
                 aria-label='Sarvam'
                 className='aspect-[202/32] w-[21cqw]'
                 style={maskStyle('/sarvam/sarvam-wordmark-white.svg')}
-                animate={{ backgroundColor: ink.primary }}
+                animate={{ backgroundColor: top.primary }}
                 transition={FADE}
               />
-              <motion.p className='text-[2.7cqw] font-[425] leading-tight' animate={{ color: ink.secondary }} transition={FADE}>
+              <motion.p className='text-[2.7cqw] font-[425] leading-tight' animate={{ color: top.secondary }} transition={FADE}>
                 AI for all from India
               </motion.p>
             </div>
-            <motion.p className='text-[2.5cqw] font-[425] leading-tight' animate={{ color: ink.meta }} transition={FADE}>
+            <motion.p className='text-[2.5cqw] font-[425] leading-tight' animate={{ color: top.meta }} transition={FADE}>
               Bengaluru
             </motion.p>
           </div>
 
           <div className='flex items-end justify-between gap-4'>
             <div className='flex flex-col gap-[0.8cqw]'>
-              <p className='font-[family-name:var(--font-season)] text-[4.6cqw] font-[525] leading-[1.1] tracking-[-0.02em]'>
-                {PERSON.name}
-              </p>
+              <Editable
+                value={person.name}
+                editing={editField === 'name'}
+                onChange={(v) => onPersonChange?.('name', v)}
+                onEnter={() => onFieldDone?.()}
+                pill={pill}
+                caret={ink.primary}
+                label='Name'
+                className='self-start font-[family-name:var(--font-season)] text-[4.6cqw] font-[525] leading-[1.1] tracking-[-0.02em]'
+              >
+                {person.name}
+              </Editable>
               <motion.p className='text-[2.6cqw] font-[425] leading-tight' animate={{ color: ink.secondary }} transition={FADE}>
-                {PERSON.role}
+                {ROLE}
               </motion.p>
             </div>
             <motion.div
@@ -293,7 +389,27 @@ export default function CompanyCard({ gradient, motif, interactive = true }: Pro
               <a href='https://www.sarvam.ai' target='_blank' rel='noreferrer'>
                 sarvam.ai
               </a>
-              <a href={`mailto:${PERSON.email}`}>{PERSON.email}</a>
+              {editField === 'email' ? (
+                // only the handle is editable; @sarvam.ai stays fixed after the pill
+                <span className='inline-flex items-baseline'>
+                  <Editable
+                    value={person.handle}
+                    editing
+                    onChange={(v) => onPersonChange?.('email', v)}
+                    onEnter={() => onFieldDone?.()}
+                    pill={pill}
+                    caret={ink.meta}
+                    label='Email name'
+                  >
+                    {person.handle}
+                  </Editable>
+                  <span className='ml-[1cqw]'>@{EMAIL_DOMAIN}</span>
+                </span>
+              ) : (
+                <a href={`mailto:${person.handle}@${EMAIL_DOMAIN}`}>
+                  {person.handle}@{EMAIL_DOMAIN}
+                </a>
+              )}
             </motion.div>
           </div>
         </motion.div>
