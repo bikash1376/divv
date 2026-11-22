@@ -117,3 +117,22 @@ video::-webkit-media-controls-overlay-play-button {
     animation: none;
   }
 }
+
+/* the craft mouse hint's left button: on/off five times (5s), then stays off */
+@keyframes click-flash {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.click-flash {
+  opacity: 0;
+  animation: click-flash 1s step-end 5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .click-flash {
+    animation: none;
+  }
+}

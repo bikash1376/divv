@@ -1,5 +1,5 @@
 "use client"
-import React, { startTransition, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
+import React, { createContext, startTransition, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -174,7 +174,30 @@ function PetalsStuff() {
 // no card clipping or transform can trap it) and rises from below the screen edge.
 const noopSubscribe = () => () => {};
 
-function ClickHint({ show }: { show: boolean }) {
+// One hint for the whole list. Cards report hover in and out; the hint hides only
+// after a short grace period, so sliding from one clickable card to the next
+// (across the gap between them) keeps it in place instead of replaying it.
+const HintContext = createContext<(on: boolean) => void>(() => {});
+const HIDE_DELAY = 120;
+
+function useClickHint() {
+  const [show, setShow] = useState(false);
+  // bumped on every card entered, so the click blink restarts per card
+  const [visit, setVisit] = useState(0);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+  const report = useCallback((on: boolean) => {
+    clearTimeout(hideTimer.current);
+    if (on) {
+      setShow(true);
+      setVisit((v) => v + 1);
+    }
+    else hideTimer.current = setTimeout(() => setShow(false), HIDE_DELAY);
+  }, []);
+  return { show, visit, report };
+}
+
+function ClickHint({ show, visit }: { show: boolean; visit: number }) {
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
   if (!mounted) return null;
   return createPortal(
@@ -187,6 +210,15 @@ function ClickHint({ show }: { show: boolean }) {
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="block">
         {/* Icon from IconOven by Appic Marketing */}
         <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
+          {/* left button: blinks like a click for 5s on each card entered
+              (keyed by visit so it remounts and the animation restarts) */}
+          <path
+            key={visit}
+            d="M12 2.75A5.75 5.75 0 0 0 6.25 8.5v1.25H12z"
+            fill="#A3A3A3"
+            stroke="none"
+            className={show ? "click-flash" : "opacity-0"}
+          />
           <rect width="11.5" height="18.5" x="6.25" y="2.75" rx="5.75" />
           <path d="M12 6.75v3" />
         </g>
@@ -233,7 +265,7 @@ const PIECES: (Piece | Piece[])[] = [
     { name: "Stamp cutter", w: 312, h: 340, render: () => <StampStuff />, clickable: true },
     { name: "Brick breaker", w: 312, h: 340, render: () => <BrickStuff />, clickable: true },
   ],
-  // hosted on Cloudinary: q_auto + w_960 cuts the 12 MB 1080p60 recording to ~1 MB
+  // Cloudinary clips use q_auto + w_960: the 1080p60 recordings shrink ~4-10x
   linked(
     clip(
       "Company card",
@@ -249,8 +281,12 @@ const PIECES: (Piece | Piece[])[] = [
     linked(clip("Copy SVG", "/v2/copy-svg.mp4"), "https://useiota.space/apps/patterns"),
   ],
   clip("Gooey text", "/crafts/gooey-text.mp4", 1856, 1080),
-  [clip("Framer boi", "/crafts/framer-boi.mp4"), linked(clip("Stamp loader", "/crafts/loading-animation-stamp.mp4"), "/loader")],
+  linked(clip("Stamp loader", "/crafts/loading-animation-stamp.mp4"), "/loader"),
   clip("Hover to delete", "/crafts/hover-delete-option.mp4"),
+  clip(
+    "iOTA logo",
+    "https://res.cloudinary.com/dz5zwlbvb/video/upload/q_auto,w_960/v1795333499/Recording_11_22_2026_1_09_36_PM_gpp90k.mp4",
+  ),
   // deepseek is a touch wider than 16:9; the pair uses one 16:9 box and the clip covers it
   [clip("DeepSeek", "/crafts/deepseek-solid.mp4"), clip("Switch", "/crafts/switch.mp4")],
   linked(clip("Kitchen loaders", "/crafts/kitchen-loaders.mp4", 720, 720), "/loaders"),
@@ -263,7 +299,7 @@ const PIECES: (Piece | Piece[])[] = [
 const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string }) => {
   const box = useRef<HTMLLIElement>(null);
   const [width, setWidth] = useState(0);
-  const [hovered, setHovered] = useState(false);
+  const reportHint = useContext(HintContext);
   const hint = Boolean(piece.href || piece.clickable);
   useLayoutEffect(() => {
     const el = box.current;
@@ -277,8 +313,8 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
     <li
       ref={box}
       aria-label={piece.name}
-      onPointerEnter={hint ? (e) => e.pointerType === "mouse" && setHovered(true) : undefined}
-      onPointerLeave={hint ? () => setHovered(false) : undefined}
+      onPointerEnter={hint ? (e) => e.pointerType === "mouse" && reportHint(true) : undefined}
+      onPointerLeave={hint ? () => reportHint(false) : undefined}
       className={`group relative overflow-hidden rounded-[12px] bg-[#F2F2F2] ${className}`}
       style={{ aspectRatio: `${piece.w} / ${piece.h}` }}
     >
@@ -309,28 +345,33 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
             className="absolute inset-0 z-10 cursor-pointer rounded-[12px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
           />
         ))}
-      {hint && <ClickHint show={hovered} />}
     </li>
   );
 };
 
 // Craft panel on the home page: one piece per row (or a pair), full column width, no labels.
-const Craft = () => (
-  <ul className="flex flex-col gap-2.5">
-    {PIECES.map((row) =>
-      Array.isArray(row) ? (
-        <li key={row.map((p) => p.name).join("+")} className="flex gap-2.5">
-          <ul className="contents">
-            {row.map((piece) => (
-              <PieceCard key={piece.name} piece={piece} className="min-w-0 flex-1" />
-            ))}
-          </ul>
-        </li>
-      ) : (
-        <PieceCard key={row.name} piece={row} />
-      ),
-    )}
-  </ul>
-);
+const Craft = () => {
+  const { show, visit, report } = useClickHint();
+  return (
+    <HintContext value={report}>
+      <ul className="flex flex-col gap-2.5">
+        {PIECES.map((row) =>
+          Array.isArray(row) ? (
+            <li key={row.map((p) => p.name).join("+")} className="flex gap-2.5">
+              <ul className="contents">
+                {row.map((piece) => (
+                  <PieceCard key={piece.name} piece={piece} className="min-w-0 flex-1" />
+                ))}
+              </ul>
+            </li>
+          ) : (
+            <PieceCard key={row.name} piece={row} />
+          ),
+        )}
+      </ul>
+      <ClickHint show={show} visit={visit} />
+    </HintContext>
+  );
+};
 
 export default Craft;
