@@ -1,6 +1,6 @@
 "use client"
 import Image from "next/image";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "motion/react";
 import Projects from "@/components/Projects";
 import Craft from "@/components/Craft";
@@ -144,6 +144,26 @@ const TAB_W = 100;
 // sticky bar is ~60px tall: a new panel starts just under it
 const SCROLL_MARGIN = 72;
 
+// The open tab is kept in sessionStorage so that opening a card (say a Craft
+// link) and coming back lands on the same tab instead of resetting to Projects.
+// The server always renders Projects; the browser switches to the stored tab
+// right after hydrating, and on a back navigation it starts on it directly.
+const TAB_KEY = "home-tab";
+const tabListeners = new Set<() => void>();
+const readTab = (): Tab => {
+  const t = sessionStorage.getItem(TAB_KEY);
+  return TABS.includes(t as Tab) ? (t as Tab) : "Projects";
+};
+const writeTab = (t: Tab) => {
+  sessionStorage.setItem(TAB_KEY, t);
+  tabListeners.forEach((l) => l());
+};
+const subscribeTab = (l: () => void) => {
+  tabListeners.add(l);
+  return () => tabListeners.delete(l);
+};
+const useStoredTab = () => useSyncExternalStore(subscribeTab, readTab, () => "Projects" as Tab);
+
 // Segmented control: a raised thumb slides under the selected tab
 const Tabs = ({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) => (
   <div role="tablist" className="relative inline-flex rounded-[10px] bg-[#f5f5f5] p-0.5">
@@ -169,7 +189,7 @@ const Tabs = ({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) => (
 );
 
 const HomePage = () => {
-  const [tab, setTab] = useState<Tab>("Projects");
+  const tab = useStoredTab();
   const [showcase, setShowcase] = useState(false);
   const panel = useRef<HTMLElement>(null);
   // Show tab `t`. If the tabs are stuck at the top, jump back to the start of the
@@ -177,7 +197,7 @@ const HomePage = () => {
   // `reveal` (from the intro links) glides down to the panel; switching tabs only
   // jumps back up when you're already scrolled past the panel's start
   const goTo = useCallback((t: Tab, reveal = false) => {
-    setTab(t);
+    writeTab(t);
     setShowcase(false);
     const el = panel.current;
     if (!el) return;

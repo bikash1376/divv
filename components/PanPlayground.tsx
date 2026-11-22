@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -8,7 +8,9 @@ import { PanFrame, panEndAt, type Kind } from "@/components/PanLoader";
 import { SCENES, SceneArt, type Look } from "@/components/tossScenes";
 import { Row, Segmented, Slider } from "@/components/ui/playground-controls";
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const noopSubscribe = () => () => {};
+
+const EASE_OUT =[0.22, 1, 0.36, 1] as const;
 const MORPH = { type: "spring", stiffness: 240, damping: 30 } as const;
 
 /* ---------------------------------------------------------------- */
@@ -149,7 +151,11 @@ const PanPlayground = ({ open, onClose, origin, onExitComplete, playing, onToggl
     };
   }, [open, onClose]);
 
-  if (typeof document === "undefined") return null;
+  // The server has no document to portal into, so render nothing until hydration
+  // finishes; checking `typeof document` directly made the first client render
+  // differ from the server HTML.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence custom={origin} onExitComplete={onExitComplete}>

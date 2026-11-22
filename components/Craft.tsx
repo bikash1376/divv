@@ -1,5 +1,5 @@
 "use client"
-import React, { startTransition, useEffect, useLayoutEffect, useRef, useState, ViewTransition } from "react";
+import React, { startTransition, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -169,6 +169,33 @@ function PetalsStuff() {
   );
 }
 
+// Mouse outline, shown when hovering a clickable card so it's clear it opens
+// something. It sits in the screen's bottom-right corner (portalled to <body> so
+// no card clipping or transform can trap it) and rises from below the screen edge.
+const noopSubscribe = () => () => {};
+
+function ClickHint({ show }: { show: boolean }) {
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  if (!mounted) return null;
+  return createPortal(
+    <span
+      aria-hidden
+      className={`pointer-events-none fixed bottom-6 right-6 z-50 hidden text-neutral-800 transition-[translate,opacity] duration-300 ease-out md:block ${
+        show ? "translate-y-0 opacity-100" : "translate-y-[calc(100%+24px)] opacity-0"
+      }`}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="block">
+        {/* Icon from IconOven by Appic Marketing */}
+        <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
+          <rect width="11.5" height="18.5" x="6.25" y="2.75" rx="5.75" />
+          <path d="M12 6.75v3" />
+        </g>
+      </svg>
+    </span>,
+    document.body,
+  );
+}
+
 // ---- The list ----
 
 // One piece per row, or a pair side by side. Each is laid out at its own design size (w × h, in px) and
@@ -176,7 +203,16 @@ function PetalsStuff() {
 // Clips use their video's own proportions.
 // `href` makes the whole card a link (http ones open in a new tab)
 // `fluid` pieces size themselves with percentages, so they skip the zoomed design box
-type Piece = { name: string; w: number; h: number; render: () => React.ReactNode; href?: string; fluid?: boolean };
+// `clickable` marks pieces that handle clicks themselves (no href), for the mouse hint
+type Piece = {
+  name: string;
+  w: number;
+  h: number;
+  render: () => React.ReactNode;
+  href?: string;
+  fluid?: boolean;
+  clickable?: boolean;
+};
 
 const linked = (piece: Piece, href: string): Piece => ({ ...piece, href });
 
@@ -194,9 +230,17 @@ const clip = (name: string, src: string, w = 1920, h = 1080, crop: Crop = FULL):
 const PIECES: (Piece | Piece[])[] = [
   linked(clip("Chain multiselect", "/crafts/multiselect.mp4"), "/multiselect"),
   [
-    { name: "Stamp cutter", w: 312, h: 340, render: () => <StampStuff /> },
-    { name: "Brick breaker", w: 312, h: 340, render: () => <BrickStuff /> },
+    { name: "Stamp cutter", w: 312, h: 340, render: () => <StampStuff />, clickable: true },
+    { name: "Brick breaker", w: 312, h: 340, render: () => <BrickStuff />, clickable: true },
   ],
+  // hosted on Cloudinary: q_auto + w_960 cuts the 12 MB 1080p60 recording to ~1 MB
+  linked(
+    clip(
+      "Company card",
+      "https://res.cloudinary.com/dz5zwlbvb/video/upload/q_auto,w_960/v1795332655/Recording_11_21_2026_5_36_44_PM_vmnh96.mp4",
+    ),
+    "/company-card",
+  ),
   linked(clip("Signup form", "/crafts/signup-form.mp4"), "/form"),
   clip("Grid", "/v2/grid.mp4"),
   clip("Ask Lovable", "/crafts/ask-lovable.mp4"),
@@ -205,7 +249,7 @@ const PIECES: (Piece | Piece[])[] = [
     linked(clip("Copy SVG", "/v2/copy-svg.mp4"), "https://useiota.space/apps/patterns"),
   ],
   clip("Gooey text", "/crafts/gooey-text.mp4", 1856, 1080),
-  [clip("Framer boi", "/crafts/framer-boi.mp4"), clip("Stamp loader", "/crafts/loading-animation-stamp.mp4")],
+  [clip("Framer boi", "/crafts/framer-boi.mp4"), linked(clip("Stamp loader", "/crafts/loading-animation-stamp.mp4"), "/loader")],
   clip("Hover to delete", "/crafts/hover-delete-option.mp4"),
   // deepseek is a touch wider than 16:9; the pair uses one 16:9 box and the clip covers it
   [clip("DeepSeek", "/crafts/deepseek-solid.mp4"), clip("Switch", "/crafts/switch.mp4")],
@@ -219,6 +263,8 @@ const PIECES: (Piece | Piece[])[] = [
 const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string }) => {
   const box = useRef<HTMLLIElement>(null);
   const [width, setWidth] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const hint = Boolean(piece.href || piece.clickable);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -231,6 +277,8 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
     <li
       ref={box}
       aria-label={piece.name}
+      onPointerEnter={hint ? (e) => e.pointerType === "mouse" && setHovered(true) : undefined}
+      onPointerLeave={hint ? () => setHovered(false) : undefined}
       className={`group relative overflow-hidden rounded-[12px] bg-[#F2F2F2] ${className}`}
       style={{ aspectRatio: `${piece.w} / ${piece.h}` }}
     >
@@ -261,6 +309,7 @@ const PieceCard = ({ piece, className = "" }: { piece: Piece; className?: string
             className="absolute inset-0 z-10 cursor-pointer rounded-[12px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-400"
           />
         ))}
+      {hint && <ClickHint show={hovered} />}
     </li>
   );
 };
